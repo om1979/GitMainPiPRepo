@@ -1,0 +1,14 @@
+tmp_tblActualPrices
+tblBonds
+tmp_tblActualAnalytics_1
+tblEquity
+tmp_tblActualPricesSN
+tblOwnersVsProductsDirectives
+tmp_tblActualAnalytics_2
+
+
+
+
+tmp_tblActualAnalytics_1
+--82,167,253,
+a1.txtFIFR

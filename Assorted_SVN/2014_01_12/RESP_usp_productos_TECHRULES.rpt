@@ -1,0 +1,3031 @@
+﻿Text
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------
+--   Modificado por: Mike Ramírez
+--   Modificacion: 15:18 p.m. 2012-04-26
+--   Descripcion: Modulo 1: Se modificar la columna NOMBRE
+----------------------------------------------------------
+CREATE PROCEDURE dbo.usp_productos_TECHRULES;1			
+  @txtDate AS DATETIME
+AS   
+BEGIN  
+
+	SET NOCOUNT ON
+
+	-- Tabla de Resultados
+	DECLARE @tblResults TABLE (
+		[intConsecutivo][INT],
+		[txtTv][VARCHAR](15),
+		[txtEmisora][VARCHAR](15),
+		[txtSerie][VARCHAR](15),
+		[txtData][VARCHAR](8000),
+		PRIMARY KEY CLUSTERED (
+			intConsecutivo,txtTV,txtEmisora,txtSerie
+			)
+	)
+
+	-- Tabla Universo de Instrumentos a procesar
+	DECLARE @tblUniverso TABLE (
+		[txtId1][CHAR](11),
+		[txtTv][VARCHAR](10),
+		[txtEmisora][VARCHAR](10),
+		[txtSerie][VARCHAR](10),
+		[txtTipoActivo][CHAR](1),
+		[intCustomerId][INT]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	-- Tabla Buffer de Vectores 
+	DECLARE @tmp_tblUnifiedPricesReport TABLE (
+		[txtTv] [varchar](10) NOT NULL,
+		[txtEmisora] [varchar](10) NOT NULL,
+		[txtSerie] [varchar](10) NOT NULL,
+		[txtId1] [varchar](11) NOT NULL,
+		[txtLiquidation] [varchar](3) NOT NULL,
+		[dblPRL] [float] NULL,
+		[txtNEM] [varchar](400) NULL,
+		[txtCUR] [varchar](3) NULL,
+		[txtTIT] [varchar](400) NULL,
+		[txtCOUNTRY] [varchar](400) NULL,
+		[txtSEC] [varchar](400) NULL
+		PRIMARY KEY CLUSTERED (
+			txtLiquidation,txtId1
+			)
+	)
+
+	-- Tabla Buffer de Vectores 
+	DECLARE @tmp_tblUnifiedPricesEquity TABLE (
+		[txtTv] [varchar](10),
+		[txtEmisora] [varchar](10),
+		[txtSerie] [varchar](10),
+		[txtId1] [varchar](11),
+		[dblAmount] [float]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	-- Tabla OLD_VALUE
+	DECLARE @tblIdsAddOLD_VALUE TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME],
+		[txtItem][CHAR](10),
+		[txtValue][VARCHAR](50)
+		PRIMARY KEY CLUSTERED (
+			txtId1,dteDate,txtItem
+			)
+	)
+
+	DECLARE @tmp_tblKEYsNW_TV TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsNW_NEC TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsNW_SER TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsOLD_TV TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsOLD_NEC TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsOLD_SER TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsFECHA_AJUSTE TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKeyAccionesNal TABLE (
+		[txtid1][CHAR](11),
+		[dblPrice][FLOAT]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKeyAccionesNal_1 TABLE (
+		[txtid1][CHAR](11),
+		[dblMax][FLOAT],
+		[dblMin][FLOAT]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	-- Tabla Intermedia para Obtención de Datos
+	DECLARE @tblVectorPricesBenchMarks TABLE (
+		[txtId1][CHAR](11),
+		[txtTv][VARCHAR](10),
+		[txtEmisora][VARCHAR](10),
+		[txtSerie][VARCHAR](10),
+		[txtCODIGO_PRODUCTO][CHAR](13),
+		[txtTIPO_ACTIVO][CHAR](1),
+		[dteFECHA][DATETIME],
+		[dblPRECIO][FLOAT],
+		[txtNOMBRE][VARCHAR](50) NULL,
+		[txtCODIGO_INTERNACIONAL][VARCHAR](19) NULL,
+		[txtDIVISA][VARCHAR](3) NULL,
+		[dblOPEN][FLOAT] NULL,
+		[dblHIGH][FLOAT] NULL,
+		[dblLOW][FLOAT] NULL,
+		[txtVOLUMEN][VARCHAR](20) NULL,
+		[txtEMISOR_PRECIO][VARCHAR](60) NULL,   -- (Item: txtSuperIssuerName -> tabla tblSuperIssuersCatalog)
+		[txtPAIS][VARCHAR](2) NULL,
+		[txtSECTOR][VARCHAR](50) NULL,				-- (Item: SEC)
+		[txtCODIGO_INTERNACIONAL_BENCHMARK][CHAR](1) NULL,
+		[txtDIVISA_BENCHMARK][VARCHAR](3) NULL,   -- MXN para todos
+		[txtCODIGO_PRODUCTO_BENCHMARK][VARCHAR](19) NULL,
+		[txtCATEGORIA][VARCHAR](100) NULL,
+		[dteFECHA_AJUSTE][DATETIME] NULL,
+		[txtDESCRIPCION][VARCHAR](25) NULL, 
+		[txtFACTOR_AJUSTE][CHAR](1) NULL,
+		[txtESTATUS_INSTRUMENTO][CHAR](1) NULL,
+		[txtNEW_VALUE][VARCHAR](19) NULL, 
+		[txtOLD_VALUE][VARCHAR](19) NULL, 
+		[txtOLDTv][VARCHAR](10),
+		[txtOLDEmisora][VARCHAR](10),
+		[txtOLDSerie][VARCHAR](10)
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	-- 1. Obtengo universo de instrumentos a procesar
+	INSERT @tblUniverso (txtId1,txtTV,txtEmisora,txtSerie,txtTipoActivo,intCustomerId)	
+	SELECT    
+			i.txtId1,i.txtTv,i.txtEmisora,i.txtSerie,
+			CASE WHEN i.txtTV IN ('J','JI','JSP','D1','D1SP','IP','IS','IT','L','LD','LP','LS','LT','M','M0','M3','M5','M7','MC','MP','S','S0','S3','S5','SC','SP','XA','D2','D2SP','D3','D3SP','D4','D4SP','D5','D5SP','D6','D6SP') THEN 'B'
+				 WHEN i.txtTV IN ('*C',	'*CSP') THEN 'C'
+				 WHEN i.txtTV IN ('51','52','53','54','55','56','56SP') THEN 'F'
+				 WHEN i.txtTV IN ('OA','OC','OD','OI') THEN 'O'
+				 WHEN i.txtTV IN ('0','00','1','1A','1AFX','1ASP','1E','1ESP','3','41','1S','YY','YYSP') THEN 'S'
+				 WHEN i.txtTV IN ('FA','FB','FC','FD','FI','FM','FS','FU') THEN 'T'
+				 WHEN i.txtTV IN ('WA','WASP','WC','WE','WESP','WI') THEN 'W'
+				 WHEN i.txtTV IN ('FWD') THEN '3'
+				 WHEN i.txtTV IN ('94','2U','3U','4U','92','95','96','B','BI','2P','3P','4P','90','91','91SP','93','93SP','97','98','R','R1','R3','R3SP','6U','CC','CP') THEN 'V'
+				 WHEN i.txtTV IN ('1B','1C','1I','1ISP') THEN '8'
+				 WHEN i.txtTV IN ('F','FSP') THEN 'D'
+				 WHEN i.txtTV IN ('IRS','SWT') THEN '2'
+				 WHEN i.txtTV IN ('2','71','75','D7','D7SP','G','I','PI','Q','QSP','73','76','D8','D8SP','IL','D','P1','JE') THEN 'A'
+				 WHEN i.txtTV IN ('TR') THEN 'R'
+			ELSE ' '
+			END AS txtTipoActivo,
+			intCustomerId
+	FROM MxFixincome.dbo.tblIds AS i (NOLOCK)
+			INNER JOIN MxFixincome.dbo.tmp_tblActualPrices AS p (NOLOCK)
+				ON i.txtId1 = p.txtId1
+	WHERE 
+		i.txtTV IN (
+					'J','JI','JSP','D1','D1SP','IP','IS','IT','L','LD','LP','LS','LT','M','M0','M3','M5','M7','MC','MP','S','S0','S3','S5','SC','SP','XA','D2','D2SP','D3','D3SP','D4','D4SP','D5','D5SP','D6','D6SP',
+					'*C','*CSP',
+					'51','52','53','54','55','56','56SP',
+					'OA','OC','OD','OI',
+					'0','00','1','1A','1AFX','1ASP','1E','1ESP','3','41','1S','YY','YYSP',
+					'FA','FB','FC','FD','FI','FM','FS','FU',
+					'WA','WASP','WC','WE','WESP','WI',
+					'FWD',
+					'94','2U','3U','4U','92','95','96','B','BI','2P','3P','4P','90','91','91SP','93','93SP','97','98','R','R1','R3','R3SP','6U','CC','CP',
+					'1B','1C','1I','1ISP',
+					'F','FSP',
+					'IRS','SWT',
+					'2','71','75','D7','D7SP','G','I','PI','Q','QSP','73','76','D8','D8SP','IL','D','P1','JE',
+					'TR'
+					)
+		AND p.txtLiquidation IN ('MD','MP')
+
+	INSERT @tmp_tblUnifiedPricesEquity (txtTv,txtEmisora,txtSerie,txtId1,dblAmount)
+		SELECT
+			i.txtTv,
+			i.txtEmisora,
+			i.txtSerie,
+			i.txtId1,
+			e.dblAmount
+		FROM MxFixincome.dbo.tblIds AS i (NOLOCK)
+			INNER JOIN MxFixincome.dbo.tblequityprices AS e (NOLOCK)
+			ON i.txtId1 = e.txtid1
+		WHERE i.txtTv IN ('1','0','00') 
+			AND e.txtoperationCode = 'S01' 
+			AND e.dtedate = @txtDate
+
+	-- Acciones Nacionales
+	INSERT @tmp_tblKeyAccionesNal (txtid1,dblPrice)
+		SELECT 
+			p.txtid1,
+			p.dblPrice
+		FROM MxFixincome.dbo.tblEquityPrices AS p
+			INNER JOIN MxFixincome.dbo.tblIds AS i
+			ON p.txtId1 = i.txtId1
+		WHERE i.txtTv IN ('0','1','41')
+			AND	p.txtOperationCode = 'A01' 
+			AND p.dteDate = @txtDate 
+			AND p.txtSource = 'BMV' 
+
+	INSERT @tmp_tblKeyAccionesNal_1 (txtid1,dblMax,dblMin)
+		SELECT 
+			p.txtid1,
+			p.dblMax,
+			p.dblMin
+		FROM MxFixincome.dbo.tblEquityPrices AS p
+			INNER JOIN MxFixincome.dbo.tblIds AS i
+			ON p.txtId1 = i.txtId1
+		WHERE i.txtTv IN ('0','1','41')
+			AND	p.txtOperationCode = 'S01' 
+			AND p.dteDate = @txtDate 
+			AND p.txtSource = 'BMV'
+
+	-- 2. Cargo información universo a la tabla Intermedia para Obtención de Datos
+	INSERT @tblVectorPricesBenchMarks (txtId1,txtTv,txtEmisora,txtSerie,txtTIPO_ACTIVO,txtCODIGO_PRODUCTO)
+	SELECT txtId1,txtTv,txtEmisora,txtSerie,txtTipoActivo,'PiP'+ SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(intCustomerId)))) + LTRIM(STR(intCustomerId))
+	FROM @tblUniverso
+
+	INSERT @tmp_tblUnifiedPricesReport(txtTv,txtEmisora,txtSerie,txtId1,txtLiquidation,dblPRL,txtNEM,txtCUR,txtTIT,txtCOUNTRY,txtSEC)
+	SELECT 
+		RTRIM(txtTv),
+		RTRIM(txtEmisora),
+		RTRIM(txtSerie),
+		RTRIM(txtId1),
+		RTRIM(txtLiquidation),
+		dblPRL,
+		RTRIM(txtNEM),
+		CASE WHEN txtTv IN ('*C','*CSP') THEN SUBSTRING(RTRIM(txtSerie),1,3) ELSE 'MXN' END AS txtCUR,
+		RTRIM(txtTIT),
+		RTRIM(txtCOUNTRY),
+		RTRIM(txtSEC)
+	FROM dbo.tmp_tblUnifiedPricesReport (NOLOCK)
+
+	-- 3. Obtengo la informacion de precios de Vector MD
+	-- 3.1 Para Items diponibles y defaults
+	UPDATE v
+	SET --v.txtCODIGO_PRODUCTO = 'CodigoProd',
+		v.dteFECHA = @txtDate,
+		v.dblPRECIO = p.dblPRL,
+		v.txtNOMBRE = CASE WHEN p.txtTV IN ('YY','YYSP') THEN RTRIM(p.txtEmisora) + ' ' + RTRIM(p.txtSerie) + ' ' + 'ADR' ELSE RTRIM(p.txtEmisora) + ' ' + RTRIM(p.txtSerie) END,
+		v.txtCODIGO_INTERNACIONAL = RTRIM(p.txtTV) + '_' + RTRIM(p.txtEmisora) + '_' + RTRIM(p.txtSerie),
+		v.txtDIVISA = p.txtCUR,
+		v.dblOPEN = CASE WHEN p.txtTV IN ('0','1','41') THEN RTRIM(STR(ROUND(an.dblPrice,6),19,6)) ELSE p.dblPRL END,
+		v.dblHIGH = CASE WHEN p.txtTV IN ('0','1','41') THEN RTRIM(STR(ROUND(an1.dblMax,6),19,6)) ELSE p.dblPRL END,
+		v.dblLOW = CASE WHEN p.txtTV IN ('0','1','41') THEN RTRIM(STR(ROUND(an1.dblMin,6),19,6)) ELSE p.dblPRL END,
+		v.txtVOLUMEN = CASE WHEN p.txtTV IN ('1','0','00') THEN RTRIM(STR(ROUND(pe.dblAmount,6),19,6)) ELSE p.txtTIT END,
+		v.txtPAIS = p.txtCOUNTRY,
+		v.txtSECTOR = p.txtSEC,
+		v.txtCODIGO_INTERNACIONAL_BENCHMARK = '',
+		v.txtDIVISA_BENCHMARK = '',							-- Para todos
+		v.txtCODIGO_PRODUCTO_BENCHMARK = '', 
+		v.dteFECHA_AJUSTE =	NULL,							-- Fecha de cambio de identificadores. Fecha de split en acciones
+		v.txtDESCRIPCION = '',								-- Reporta "Cambio de identificadores" si hay cambio en los identificadores o "Split" si hay  un split en acciones
+		v.txtFACTOR_AJUSTE = '',							-- Se reportara en blanco hasta que el área de Insumos reporte esta información
+		v.txtESTATUS_INSTRUMENTO = '1',
+		v.txtNEW_VALUE = RTRIM(p.txtTV) + '_' + RTRIM(p.txtEmisora) + '_' + RTRIM(p.txtSerie),
+		v.txtOLD_VALUE = ''
+	FROM @tmp_tblUnifiedPricesReport AS p
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtId1 = v.txtId1
+			LEFT OUTER JOIN @tmp_tblUnifiedPricesEquity AS pe
+				ON p.txtId1 = pe.txtId1	
+			LEFT OUTER JOIN @tmp_tblKeyAccionesNal AS an
+				ON p.txtId1 = an.txtId1	
+			LEFT OUTER JOIN @tmp_tblKeyAccionesNal_1 AS an1
+				ON p.txtId1 = an1.txtId1			
+	WHERE 
+		p.txtLiquidation IN('MD','MP')
+
+	-- 3.1.1 Para cambio en campo SECTOR
+	UPDATE v
+	SET v.txtSECTOR = RTRIM(p.intSector)
+	FROM dbo.tblBMVSectorCatalog AS p (NOLOCK)
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtDescription = v.txtSECTOR
+
+	-- 3.2 Para EMISOR_PRECIO
+	UPDATE v
+	SET v.txtEMISOR_PRECIO = (CASE			
+								WHEN v.txtTV IN ('1A','1ASP','YY','YYSP') THEN 'Sistema Internacional de Cotizaciones (SIC)'
+								WHEN v.txtTV IN ('0','00','1','3','41') THEN 'Bolsa Mexicana de Valores'
+								WHEN v.txtTV IN ('56','56SP') THEN 'Operadora extranjera'
+								WHEN v.txtTV IN ('54') THEN 'AFORE' + ' ' + RTRIM(txtSuperIssuer)
+								WHEN p.txtSuperIssuer = 'TASA' THEN 'Intercam Fondos'
+								WHEN p.txtSuperIssuer = 'OAFIRME' THEN 'AFIRME'
+								WHEN p.txtSuperIssuer = 'ADICION' THEN 'Vanguardia'
+								WHEN v.txtTV IN ('1E','1ESP') THEN 'Mercado Extranjero'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%ISHARES%' THEN 'BLACK ROCK'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%CURRENCYSHARES%' THEN 'CURRENCYSHARES'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%DVG%' THEN 'DV G'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%DIREXION%' THEN 'DIREXION'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%EASYETF%' THEN 'EASYETF'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%GLOBAL X%' THEN 'GLOBALX'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%HANG SENG%' THEN 'HANG SENG INVESTMENT MANAGEMENT'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%IPATH%' THEN 'iPath ETN'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%POWERSHARES%' THEN 'POWERSHARES'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%PROSHARES%' THEN 'PROSHARES'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%S.A.P.I.B.%' THEN 'SAPIB'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%PROTEGO CASA DE BOLSA%' THEN 'SMARTSHARES PROTEGO'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%SPDR%' THEN 'SPDR'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%STREETTRACKS%' THEN 'STATE STREET GLOBAL ADVISORS'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%UBS-ETF%' THEN 'UBS'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%MARKET VECTORS%' THEN 'VANECK'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%VANGUARD%' THEN 'VANGUARD'
+								WHEN v.txtTV IN ('1B','1C','1I','1ISP','1S') AND u.txtNEM LIKE '%WISDOMTREE%' THEN 'WISDOMTREE'
+								ELSE SUBSTRING(RTRIM(p.txtSuperIssuer),1,19)
+							 END)
+	FROM MxFixincome.dbo.tblissuersCatalog AS p (NOLOCK)
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtIssuer = v.txtEmisora
+				INNER JOIN @tmp_tblUnifiedPricesReport AS u
+				ON p.txtIssuer = u.txtEmisora
+
+	-- 3.3 Para CATEGORIA
+	UPDATE v
+	SET v.txtCATEGORIA = SUBSTRING(RTRIM(p.txtTV),1,100)
+	FROM MxFixincome.dbo.tblTVCatalog AS p (NOLOCK)
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtTv = v.txtTv
+
+	-- 3.4 Para ESTATUS INSTRUMENTO
+	UPDATE v
+	SET v.txtESTATUS_INSTRUMENTO = '0'
+	FROM MxFixincome.dbo.tblFixedPrices AS p (NOLOCK)
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtId1 = v.txtId1
+	WHERE txtLiquidation IN ('MD','MP')
+
+	-- 3.5 Para obtener OLD_VALUE
+	-- 3.5.1 Obtengo todos los key disponibles para los items: TV,EMISORA,SERIE 
+	INSERT @tblIdsAddOLD_VALUE (txtId1,dteDate,txtItem,txtValue)
+	SELECT txtId1,dteDate,txtItem,txtValue
+	FROM MxFixincome.dbo.tblIdsAdd AS tacc (NOLOCK) 
+	WHERE txtItem IN ('TV','NEC','SER')
+
+	-- 3.5.2 Obtengo los Key más recientes
+	INSERT @tmp_tblKEYsNW_TV(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'TV'
+	GROUP BY txtId1
+
+	INSERT @tmp_tblKEYsNW_NEC(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'NEC'
+	GROUP BY txtId1
+
+	INSERT @tmp_tblKEYsNW_SER(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'SER'
+	GROUP BY txtId1
+
+	-- 	3.5.3 Obtengo penultima fecha de ajuste los penultimos Key
+	INSERT @tmp_tblKEYsFECHA_AJUSTE
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem IN ('TV','NEC','SER')
+	GROUP BY txtId1
+
+	-- 3.5.4 Para FECHA_AJUSTE
+	UPDATE v
+	SET v.dteFECHA_AJUSTE = f.dteDate,
+		v.txtDESCRIPCION = 'Cambio de identificadores'
+	FROM @tmp_tblKEYsFECHA_AJUSTE AS f
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON f.txtId1 = v.txtId1
+
+	-- 3.5.5 Elimino los Items más recientes para tomar el penúltimo cambio
+	DELETE tac 
+	FROM 
+		@tblIdsAddOLD_VALUE AS tac
+		INNER JOIN @tmp_tblKEYsNW_TV AS tkc
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'TV'
+
+	DELETE tac 
+	FROM 
+		@tblIdsAddOLD_VALUE AS tac
+		INNER JOIN @tmp_tblKEYsNW_NEC AS tkc
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'NEC'
+
+	DELETE tac 
+	FROM 
+		@tblIdsAddOLD_VALUE AS tac
+		INNER JOIN @tmp_tblKEYsNW_SER AS tkc
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'SER'
+
+	-- 3.5.6 Obtengo los penultimos Key
+	INSERT @tmp_tblKEYsOLD_TV(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'TV'
+	GROUP BY txtId1
+
+	INSERT @tmp_tblKEYsOLD_NEC(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'NEC'
+	GROUP BY txtId1
+
+	INSERT @tmp_tblKEYsOLD_SER(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'SER'
+	GROUP BY txtId1
+
+	-- 3.5.7 Obtengo los valores penúltimo cambio
+	UPDATE v
+	SET v.txtOLDTv = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsOLD_TV AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'TV'
+	UPDATE v
+	SET v.txtOLDEmisora = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsOLD_NEC AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'NEC'
+
+	UPDATE v
+	SET v.txtOLDSerie = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsOLD_SER AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'SER'
+
+	-- 3.5.8 Determino ultimo código asignado
+	UPDATE v
+	SET v.txtOLD_VALUE = (CASE WHEN txtOLDTv IS NULL THEN RTRIM(txtTV) ELSE RTRIM(txtOLDTV) END) + '_' + 
+						(CASE WHEN txtOLDEmisora IS NULL THEN RTRIM(txtEmisora) ELSE RTRIM(txtOLDEmisora) END) + '_' + 
+						(CASE WHEN txtOLDSerie IS NULL THEN RTRIM(txtSerie) ELSE RTRIM(txtOLDSerie) END)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+
+	-- 3.5.9 Elimino los codigos repetidos 
+	UPDATE v
+	SET v.txtOLD_VALUE = '',
+		v.dteFECHA_AJUSTE =	NULL,
+		v.txtDESCRIPCION = ''
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+	WHERE 
+		v.txtNEW_VALUE = v.txtOLD_VALUE 
+ 
+	-- Para modificar el campo 'txtTIPO_ACTIVO' de acuerdo al catalogo enviado por TechRules
+	UPDATE r
+	SET txtTIPO_ACTIVO = (CASE			
+							WHEN txtTV IN ('D3','D3SP','2','G','Q','QSP','76') THEN 'L'
+							WHEN txtTV IN ('71','75','I','PI','73','IL','P1') THEN 'D'
+							WHEN txtTV IN ('F','FSP') THEN 'V'
+							WHEN txtTV IN ('D7','D7SP') THEN 'K'
+							WHEN txtTV IN ('D8','D8SP','JE') THEN 'B'
+							WHEN txtTV = '54' THEN 'P'
+							WHEN txtTV = 'RC' THEN 'I'
+					ELSE txtTIPO_ACTIVO
+				 END)	
+	FROM @tblVectorPricesBenchMarks AS r
+	WHERE txtTV IN ('D3','D3SP','54','RC','F','FSP','2','71','75','D7','D7SP','G','I','PI','Q','QSP','73','76','D8','D8SP','IL','P1','JE')
+ 
+	-- Para modificar el campo 'txtTIPO_ACTIVO' de acuerdo al catalogo enviado por TechRules
+	UPDATE r
+	SET txtNOMBRE = (CASE			
+							WHEN txtTV IN ('51','52','53') THEN RTRIM(txtEmisora) + ' ' + RTRIM(txtSerie)
+					ELSE txtNOMBRE
+				 END)	
+	FROM @tblVectorPricesBenchMarks AS r
+	WHERE txtTV IN ('51','52','53')
+ 
+	-- Detalle de Información Vector de Precios
+	INSERT @tblResults (intConsecutivo,txtTV,txtEmisora,txtSerie,txtData)
+	SELECT 
+			1,
+			txtTv,
+			txtEmisora,
+			txtSerie, 
+			RTRIM(txtCODIGO_PRODUCTO) + '|' +
+			RTRIM(txtTIPO_ACTIVO) + '|' +
+			CONVERT(CHAR(8),dteFECHA,112) + '|' +
+			CASE WHEN dblPRECIO IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblPRECIO,6),19,6)) END + '|' +
+
+			CASE 
+				WHEN txtNOMBRE IS NULL OR txtNOMBRE = '-' OR txtNOMBRE = 'NA' THEN '' 
+				ELSE RTRIM(txtNOMBRE) 
+			END + '|' +
+
+			RTRIM(txtCODIGO_INTERNACIONAL) + '|' +
+			RTRIM(txtDIVISA) + '|' +
+			CASE WHEN dblOPEN IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblOPEN,6),19,6)) END + '|' +
+			CASE WHEN dblHIGH IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblHIGH,6),19,6)) END + '|' +
+			CASE WHEN dblLOW IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblLOW,6),19,6)) END + '|' +
+			CASE WHEN txtVOLUMEN IS NULL OR txtVOLUMEN = '-' OR txtVOLUMEN = 'NA' THEN '' ELSE RTRIM(txtVOLUMEN) END + '|' +
+			CASE WHEN txtEMISOR_PRECIO IS NULL OR txtEMISOR_PRECIO = '-' OR txtEMISOR_PRECIO = 'NA' THEN '' ELSE RTRIM(txtEMISOR_PRECIO) END + '|' +
+			CASE WHEN txtPAIS IS NULL OR txtPAIS = '-' OR txtPAIS = 'NA' THEN '' ELSE RTRIM(txtPAIS) END + '|' +
+			CASE WHEN txtSECTOR IS NULL OR txtSECTOR = '-' OR txtSECTOR = 'NA' THEN '' ELSE RTRIM(txtSECTOR) END + '|' +
+			CASE WHEN txtCODIGO_INTERNACIONAL_BENCHMARK IS NULL OR txtCODIGO_INTERNACIONAL_BENCHMARK = '-' OR txtCODIGO_INTERNACIONAL_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtCODIGO_INTERNACIONAL_BENCHMARK) END + '|' +
+			CASE WHEN txtDIVISA_BENCHMARK IS NULL OR txtDIVISA_BENCHMARK = '-' OR txtDIVISA_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtDIVISA_BENCHMARK) END + '|' +
+			CASE WHEN txtCODIGO_PRODUCTO_BENCHMARK IS NULL OR txtCODIGO_PRODUCTO_BENCHMARK = '-' OR txtCODIGO_PRODUCTO_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtCODIGO_PRODUCTO_BENCHMARK) END + '|' +
+			RTRIM(txtCATEGORIA) + '|' +
+			CASE WHEN dteFECHA_AJUSTE IS NULL THEN '' ELSE CONVERT(CHAR(8),dteFECHA_AJUSTE,112) END + '|' +
+			CASE WHEN txtDESCRIPCION IS NULL OR txtDESCRIPCION = '-' OR txtDESCRIPCION = 'NA' THEN '' ELSE RTRIM(txtDESCRIPCION) END + '|' +
+			CASE WHEN txtFACTOR_AJUSTE IS NULL OR txtFACTOR_AJUSTE = '-' OR txtFACTOR_AJUSTE = 'NA' THEN '' ELSE RTRIM(txtFACTOR_AJUSTE) END + '|' +
+			RTRIM(txtESTATUS_INSTRUMENTO) + '|' +
+			CASE WHEN txtNEW_VALUE IS NULL  THEN '' ELSE RTRIM(txtNEW_VALUE) END + '|' +
+			CASE WHEN txtOLD_VALUE IS NULL  THEN '' ELSE RTRIM(txtOLD_VALUE) END
+			AS [txtData]
+	FROM @tblVectorPricesBenchMarks
+
+	-- Detalle de Información BenchMarks
+	INSERT @tblResults (intConsecutivo,txtTV,txtEmisora,txtSerie,txtData)
+	SELECT 
+			2,
+			p.txtType, -- txtTV
+			p.txtType, -- txtEmisora
+			p.txtType, -- txtSerie
+			'PiPB'+ SUBSTRING('000000000',1,9-LEN(LTRIM(STR(c.intCustomerId)))) + LTRIM(STR(c.intCustomerId))  + '|' +
+			'I'  + '|' +
+			CONVERT(CHAR(8),p.dteDate,112) + '|' +
+			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +
+			CASE WHEN c.txtIndexNameMD IS NULL OR c.txtIndexNameMD = '-' OR c.txtIndexNameMD = 'NA' THEN '' ELSE RTRIM(c.txtIndexNameMD) END + '|' +
+			'PiPB'+ SUBSTRING('000000000',1,9-LEN(LTRIM(STR(c.intCustomerId)))) + LTRIM(STR(c.intCustomerId))  + '|' + -- Codigo Internacional
+			'MXN'  + '|' + -- Divisa
+			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +   -- OPEN
+			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +	 -- HIGH
+			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +	 -- LOW
+			''  + '|' + -- VOLUMEN
+			''  + '|' + -- EMISOR_PRECIO
+			''  + '|' + -- PAIS
+			''  + '|' + -- SECTOR
+			''  + '|' + -- CODIGO_INTERNACIONAL_BENCHMARK
+			'MXN'  + '|' + -- DIVISA_BENCHMARK
+			'PiPB'+ SUBSTRING('000000000',1,9-LEN(LTRIM(STR(c.intCustomerId)))) + LTRIM(STR(c.intCustomerId))  + '|' +  -- CODIGO_PRODUCTO_BENCHMARK
+			'Benchmark' + '|' +
+			''  + '|' + -- FECHA_AJUSTE
+			''  + '|' + -- DESCRIPCION
+			''  + '|' + -- FACTOR_AJUSTE
+			'1'  + '|' + -- ESTATUS_INSTRUMENTO
+			''  + '|' + -- NEW_VALUE
+			''			-- OLD_VALUE
+			AS [txtData]
+	FROM MxFixincome.dbo.tblBenchCatalog AS c (NOLOCK)
+		INNER JOIN MxFixincome.dbo.tblPiPIndexes AS p (NOLOCK)
+			ON c.txtType = p.txtType AND c.intTaxes = p.intTaxes
+	WHERE p.dteDate = @txtDate
+		AND p.txtType IN (
+			'CEDEVIS>>1A','SHF','SHF-MPS','SHF-UDI','BANK>>CP','BANK>>LP','BANK','TFB','BORHIS','STD_COR_FLO_-=5',
+			'STD_COR_FLO_+5','STD_COR_FIX_-=3','STD_COR_FIX_3-7','STD_COR_FIX_+7','D2S','CORP_M>>CP','CORP_M>>LP',
+			'CORP_M','PIPGUB','LS','LD','LATMEXBonds5Y','LATMEXBonds10Y','M_CI','M_','LATMEXBonds>10Y','IS','IP',
+			'IT','XA','2UCI','2U','BI>>182','BI>>028','BI>>364','BI>>007','BI>>091','BI>>090','B_','LATMEXCetes',
+			'PIPF10A','PIPF13M','PIPF1M','PIPF12M','M_>>20AP','M_>>30AP','PIPF3M','PIPF3A','PIPF5A','PIPF6M','PIPF',
+			'PIPFLCP','PIPFLLP','PIPFL2','PIPFL','FONDGUBB','TFGOBAN','FONDGUBN','PI','PIPR10A','PIPR1A','PIPR20A',
+			'PIPR30A','PIPR5A','PIPR20A_CI','PIPREAL_CI','PIPR30A_CI','PIPREAL','S_CI','S_','S_DUR>>5-6','LATMEXUDIS',
+			'D1','D1-USD>>10AP','D1-USD>>20AP','D1-USD>>LP','D1-USD>>5AP','D1-USD>>1AP','D1-USD','D1-EUR','LATMEXUMS',
+			'PIPIPAB')
+		AND p.intTaxes = 0
+
+	-- Valida la información 
+	IF ((SELECT count(*) FROM @tblResults) <= 1)
+
+		BEGIN
+			RAISERROR ('ERROR: Falta Informacion', 16, 1)
+		END
+
+	ELSE
+			-- Reporto informacion
+			SELECT 
+			RTRIM(txtData)
+			FROM @tblResults
+			ORDER BY intConsecutivo,txtTV,txtEmisora,txtSerie
+
+	SET NOCOUNT OFF
+
+END
+
+
+--   Autor:      Mike Ramírez        
+--   Creacion:   05:45 p.m. 2011-01-19        
+--   Descripcion:  Procedimiento que genera producto FE_YYYYMMDD.txt    
+CREATE PROCEDURE dbo.usp_productos_TechRules;2    
+  @txtDate AS DATETIME    
+AS       
+BEGIN      
+    
+	SET NOCOUNT ON  
+
+	-- Creo tabla temporal de resultados    
+	DECLARE @tblResult TABLE (    
+	  [intSection][INTEGER],    
+	  [txtData][VARCHAR](8000)
+	 )    
+   
+	 -- Creo tabla temporal para extraer el universo de datos  
+	DECLARE @tmp_tblTemp TABLE (
+	  [IntCustId] INT,
+	  [txtISD] CHAR(8),
+	  [txtSec] CHAR(50),
+	  [txtSerie] CHAR(6),
+	  [intTit] VARCHAR(50),
+	  [intPatr] CHAR (50),
+	  [txtDesc] CHAR(400)  
+	  PRIMARY KEY(IntCustId)	
+	)
+
+	INSERT @tmp_tblTemp (IntCustId,txtISD,txtSec,txtSerie,intTit,intPatr,txtDesc)
+	SELECT
+		id.intCustomerId,
+		CASE WHEN upr.txtISD = '-' THEN '' ELSE CONVERT(CHAR(8),CONVERT(DATETIME, ISNULL(upr.txtISD, '1900-01-01')),112) END,
+		upr.txtSEC,
+		upr.txtSerie,
+		upr.txtTIT,
+		upr.txtMOC,
+		CASE WHEN upr.txttv = '51' THEN 'Acciones de Sociedades de Inversión Instrumentos de Deuda' 
+			 WHEN upr.txttv = '52' THEN 'Acciones de Sociedades de Inversión Común Renta Variable'
+			 WHEN upr.txttv = '53' THEN 'Acciones de Sociedades de Inversión de Riesgo'
+			 WHEN upr.txttv = '54' THEN 'Acciones de Sociedades de Inversión de Fondos para el retiro'
+			 WHEN upr.txttv = '55' THEN 'Acciones de Sociedades que integran sus activos por otras sociedades de inversión'
+ 			 WHEN upr.txttv = '56' THEN 'Sociedades de Inversión Extranjeras'
+ 			 WHEN upr.txttv = '1I' THEN 'Tracks Extranjeros (Fix)'
+ 			 WHEN upr.txttv = '1ISP' THEN 'Tracks Extranjeros (Spot)'
+ 			 WHEN upr.txttv = '1C' THEN 'Tracks Deuda Corporativa'
+ 			 WHEN upr.txttv = '1B' THEN 'Títulos Referenciados Acciones'
+		END AS Descripcion
+	FROM dbo.tmp_tblUnifiedPricesReport AS upr
+		INNER JOIN tblids AS id
+		ON upr.txtId1 = id.txtId1
+	WHERE upr.txtTv IN ('51','52','53','54','55','56','1I','1ISP','1C','1B') AND upr.dtedate = @txtDate
+	ORDER BY Descripcion
+
+	INSERT @tblResult  (intSection,txtData) 
+	SELECT 1,
+		'PiP'+SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(IntCustId)))) + LTRIM(STR(IntCustId))+'|'+
+		RTRIM(txtISD) +'|'+
+		CASE WHEN txtSEC IS NULL THEN '' ELSE RTRIM(txtSEC) END +'|'+
+		RTRIM(txtSerie)+'|'+'|'+'|'+
+		CASE WHEN intTit IS NULL OR intTit = '-' OR intTit = 'NA' THEN '' ELSE RTRIM(intTit) END +'|'+
+		CASE WHEN intPatr IS NULL OR intPatr = '-' OR intPatr = 'NA' THEN '' ELSE RTRIM(intPatr) END +'|'+'|'+
+		RTRIM(txtDesc) 
+	 FROM @tmp_tblTemp
+
+ -- Valida la información   
+	IF ((SELECT count(*) FROM @tblResult) <= 1)    
+		 BEGIN  
+			 RAISERROR ('ERROR: Falta Informacion', 16, 1)  
+		 END    
+	ELSE  
+		 -- Reporto informacion     
+		 SELECT LTRIM(txtData)     
+		 FROM @tblResult    
+		 ORDER BY intSection    
+	    
+	SET NOCOUNT OFF     
+    
+END
+--------------------------------------------------------------------------------
+--  Modificado por:	Mike Ramirez
+--  Fecha:	17:05 p.m. 2011-07-27
+--  Descripcion:	Modulo:3 Modificación en el reporte de la columna txtFIQ   
+--  Modificado por:	 Mike
+--  Modificacion:	09:14 a.m. 2011-12-23
+--  Descripcion:    Uso de mejores practicas de optimizacion
+--------------------------------------------------------------------------------
+CREATE PROCEDURE dbo.usp_productos_TechRules;3    
+  @txtDate AS DATETIME    
+    
+AS       
+BEGIN      
+    
+	SET NOCOUNT ON  
+	
+	-- Creo tabla temporal de resultados    
+	DECLARE @tblResult TABLE (    
+	[intSection][INTEGER],    
+	[txtData][VARCHAR](8000)    
+	)    
+
+	 -- Creo tabla temporal para extraer el universo de datos  
+	DECLARE @tmp_tblTemp TABLE (
+	  [IntCustId] INT,
+	  [txtISD] CHAR(8),
+	  [txtMTD] CHAR(8),
+	  [txtCAL] CHAR(20),
+	  [intNOM] CHAR(20),
+	  [txtCPA] CHAR(20),
+	  [intfloat] CHAR(10),
+	  [txtCPF] CHAR(20),
+	  [txtNCR] CHAR(20),
+	  [txtFIQ] CHAR(20),
+	  [dteDate] CHAR(8),
+	  [dblCPD] CHAR(20),
+	  [dblYTM] CHAR(20),
+	  [txtCMT] CHAR(20),
+	  [txtDMC] CHAR(20),
+	  [txtDMF] CHAR(20)
+	  PRIMARY KEY(IntCustId)
+	)
+	  
+	-- Cargo universo
+	INSERT @tmp_tblTemp (IntCustId,txtISD,txtMTD,txtCAL,intNOM,txtCPA,intfloat,txtCPF,txtNCR,txtFIQ,dteDate,dblCPD,dblYTM,txtCMT,txtDMC,txtDMF)
+		SELECT
+			id.intCustomerId,
+			CASE
+				WHEN upr.txtISD = '-' THEN ''
+				ELSE CONVERT(CHAR(8),CONVERT(DATETIME, ISNULL(upr.txtISD, '1900-01-01')),112) 
+			END,
+			CASE 
+				WHEN upr.txtMTD = '-' OR upr.txtMTD = 'NA' THEN '' 
+				ELSE CONVERT(CHAR(8),CONVERT(DATETIME, ISNULL(upr.txtMTD, '1900-01-01')),112) 
+			END,
+			bs.txtcalendar,
+			upr.txtNOM,
+			upr.dblCPA,
+			bs.intfixfloat,
+			upr.txtCPF,
+			upr.txtNCR,
+			upr.txtFIQ,
+			CONVERT(CHAR(8),upr.dteDate,112),
+			upr.dblCPD,
+			upr.dblYTM,
+			upr.txtCMT,
+			upr.txtDMC,
+			upr.txtDMF
+		FROM MxFixincome.dbo.tmp_tblUnifiedPricesReport AS upr (NOLOCK)
+			INNER JOIN MxFixincome.dbo.tblids AS id (NOLOCK)
+			ON upr.txtId1 = id.txtId1
+			INNER JOIN MxFixincome.dbo.tblbonds AS bs (NOLOCK)
+			ON upr.txtid1 = bs.txtid1
+		WHERE id.txtTv IN ('94','D3','D3SP','D7','D7SP','F','FSP','G','I','IL','J','JI','JSP','Q','QSP','2U','3U','4U','6U',
+					       '92','95','96','B','BI','CC','CP','D1','D1SP','IP','IS','IT','L','LD','LP','LS','LT','M','M0','M3',
+						   'M5','M7','MC','MP','PI','S','S0','S3','S5','SC','SP','TR','XA','2','2P','3P','4P','71','73','75','76',
+						   '90','91','91SP','93','93SP','97','98','D','D2','D2SP','P1','R','R1','R3','R3SP','D4','D4SP','D5','D5SP',
+						   'D6','D6SP','D8','D8SP','JE') 
+			AND upr.txtliquidation = 'MD' 
+			AND upr.dtedate = @txtDate
+
+	-- Genero tabla de resultados
+	INSERT @tblResult (intSection,txtData) 
+		SELECT
+			1,
+			'PiP'+SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(IntCustId)))) + LTRIM(STR(IntCustId))+'|'+
+			RTRIM(txtISD)+'|'+
+			RTRIM(txtMTD)+'|'+
+			RTRIM(txtCAL)+'|'+
+			RTRIM(intNOM)+'|'+
+			RTRIM(txtCPA)+'|'+
+			CASE
+				WHEN intfloat IS NULL OR intfloat = '-' OR intfloat = 'NA' THEN ''
+				ELSE RTRIM(intfloat)
+			END+'|'+
+			''+'|'+
+			CASE
+				WHEN txtCPF IS NULL OR txtCPF = '-' OR txtCPF = 'NA' THEN '' 
+				ELSE RTRIM(txtCPF) 
+			END+'|'+
+			CASE 
+				WHEN txtNCR IS NULL OR txtNCR = '-' OR txtNCR = 'NA' THEN '' 
+				ELSE RTRIM(txtNCR) 
+			END+'|'+
+			'MXN'+'|'+
+			''+'|'+
+			''+'|'+
+			CASE 
+				WHEN txtFIQ IS NULL OR txtFIQ = '-' OR txtFIQ = 'NA' OR txtFIQ = 'RETIRADA' THEN '' 
+				ELSE RTRIM(txtFIQ) 
+			END+'|'+
+			RTRIM(dteDate)+'|'+
+			RTRIM(dblCPD)+'|'+
+			RTRIM(dblYTM)+'|'+
+			RTRIM(dblYTM)+'|'+
+			CASE 
+				WHEN txtCMT IS NULL OR txtCMT = '-' OR txtCMT = 'NA' THEN '' 
+				ELSE RTRIM(txtCMT) 
+			END+'|'+
+			CASE 
+				WHEN txtCMT IS NULL OR txtCMT = '-' OR txtCMT = 'NA' THEN '' 
+				ELSE RTRIM(txtCMT) 
+			END+'|'+
+			CASE 
+				WHEN txtDMC IS NULL OR txtDMC = '-' OR txtDMC = 'NA' THEN '' 
+				ELSE RTRIM(txtDMC) 
+			END+'|'+
+			CASE 
+				WHEN txtDMC IS NULL OR txtDMC = '-' OR txtDMC = 'NA' THEN '' 
+				ELSE RTRIM(txtDMC) 
+			END+'|'+
+			CASE 
+				WHEN txtDMF IS NULL OR txtDMF = '-' OR txtDMF = 'NA' THEN '' 
+				ELSE RTRIM(txtDMF) 
+			END+'|'+
+			CASE 
+				WHEN txtDMF IS NULL OR txtDMF = '-' OR txtDMF = 'NA' THEN '' 
+				ELSE RTRIM(txtDMF) 
+			END
+		FROM @tmp_tblTemp
+
+	-- Valida la información   
+	IF EXISTS(
+		SELECT TOP 1 intsection
+		FROM @tblResult
+	)
+	BEGIN
+		-- Reporto informacion     
+		 SELECT 
+			LTRIM(txtData)     
+		 FROM @tblResult    
+		 ORDER BY intSection  
+	END
+	ELSE 
+		RAISERROR ('ERROR: Falta Informacion', 16, 1)  
+
+	SET NOCOUNT OFF 
+    
+END
+--USE MxFixIncome
+--GO
+--
+--DROP PROCEDURE usp_productos_TECHRULES
+--GO
+--
+--/*
+--	Creador:			Lic. René López Salinas
+--	Fecha de creación:		2011-01-18
+--	Fecha de modificación:
+--	Descripción:			Modulo para la generación de los productos del Cliente: TECHRULES
+--*/
+--
+----   Autor:         	Lic. René López Salinas
+----   Creacion:		05:30 p.m. 2011-01-18
+----   Descripcion:    	Procedimiento que genera el producto CB_yyyymmdd.txt
+--CREATE PROCEDURE dbo.usp_productos_TECHRULES;1
+--  @txtDate AS DATETIME
+--AS   
+--BEGIN  
+--
+--	SET NOCOUNT ON
+--
+--	-- Tabla de Resultados
+--	DECLARE @tblResults TABLE (
+--		[intConsecutivo][INT],
+--		[txtTv][VARCHAR](15),
+--		[txtEmisora][VARCHAR](15),
+--		[txtSerie][VARCHAR](15),
+--		[txtData][VARCHAR](8000),
+--		PRIMARY KEY CLUSTERED (
+--			intConsecutivo,txtTV,txtEmisora,txtSerie
+--			)
+--	)
+--
+--	-- Tabla Universo de Instrumentos a procesar
+--	DECLARE @tblUniverso TABLE (
+--		[txtId1][CHAR](11),
+--		[txtTv][VARCHAR](10),
+--		[txtEmisora][VARCHAR](10),
+--		[txtSerie][VARCHAR](10),
+--		[txtTipoActivo][CHAR](1),
+--		[intCustomerId][INT]
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	-- Tabla Buffer de Vectores 
+--	DECLARE @tmp_tblUnifiedPricesReport TABLE (
+--		[txtTv] [varchar](10) NOT NULL,
+--		[txtEmisora] [varchar](10) NOT NULL,
+--		[txtSerie] [varchar](10) NOT NULL,
+--		[txtId1] [varchar](11) NOT NULL,
+--		[txtLiquidation] [varchar](3) NOT NULL,
+--		[dblPRS] [float] NULL,
+--		[txtNEM] [varchar](400) NULL,
+--		[txtCUR] [varchar](3) NULL,
+--		[txtMOC] [varchar](400) NULL,
+--		[txtCOUNTRY] [varchar](400) NULL,
+--		[txtSEC] [varchar](400) NULL
+--		PRIMARY KEY CLUSTERED (
+--			txtLiquidation,txtId1
+--			)
+--	)
+--
+--	-- Tabla OLD_VALUE
+--	DECLARE @tblIdsAddOLD_VALUE TABLE (
+--		[txtId1][CHAR](11),
+--		[dteDate][DATETIME],
+--		[txtItem][CHAR](10),
+--		[txtValue][VARCHAR](50)
+--		PRIMARY KEY CLUSTERED (
+--			txtId1,dteDate,txtItem
+--			)
+--	)
+--
+--	DECLARE @tmp_tblKEYsNW_TV TABLE (
+--		[txtId1][CHAR](11),
+--		[dteDate][DATETIME]
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	DECLARE @tmp_tblKEYsNW_NEC TABLE (
+--		[txtId1][CHAR](11),
+--		[dteDate][DATETIME]
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	DECLARE @tmp_tblKEYsNW_SER TABLE (
+--		[txtId1][CHAR](11),
+--		[dteDate][DATETIME]
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	DECLARE @tmp_tblKEYsOLD_TV TABLE (
+--		[txtId1][CHAR](11),
+--		[dteDate][DATETIME]
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	DECLARE @tmp_tblKEYsOLD_NEC TABLE (
+--		[txtId1][CHAR](11),
+--		[dteDate][DATETIME]
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	DECLARE @tmp_tblKEYsOLD_SER TABLE (
+--		[txtId1][CHAR](11),
+--		[dteDate][DATETIME]
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	DECLARE @tmp_tblKEYsFECHA_AJUSTE TABLE (
+--		[txtId1][CHAR](11),
+--		[dteDate][DATETIME]
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	-- Tabla Intermedia para Obtención de Datos
+--	DECLARE @tblVectorPricesBenchMarks TABLE (
+--		[txtId1][CHAR](11),
+--		[txtTv][VARCHAR](10),
+--		[txtEmisora][VARCHAR](10),
+--		[txtSerie][VARCHAR](10),
+--		[txtCODIGO_PRODUCTO][CHAR](13),
+--		[txtTIPO_ACTIVO][CHAR](1),
+--		[dteFECHA][DATETIME],
+--		[dblPRECIO][FLOAT],
+--		[txtNOMBRE][VARCHAR](50) NULL,
+--		[txtCODIGO_INTERNACIONAL][VARCHAR](19) NULL,
+--		[txtDIVISA][VARCHAR](3) NULL,
+--		[dblOPEN][FLOAT] NULL,
+--		[dblHIGH][FLOAT] NULL,
+--		[dblLOW][FLOAT] NULL,
+--		[txtVOLUMEN][VARCHAR](20) NULL,
+--		[txtEMISOR_PRECIO][VARCHAR](19) NULL,   -- (Item: txtSuperIssuerName -> tabla tblSuperIssuersCatalog)
+--		[txtPAIS][VARCHAR](2) NULL,
+--		[txtSECTOR][VARCHAR](50) NULL,				-- (Item: SEC)
+--		[txtCODIGO_INTERNACIONAL_BENCHMARK][CHAR](1) NULL,
+--		[txtDIVISA_BENCHMARK][VARCHAR](3) NULL,         -- MXN para todos
+--		[txtCODIGO_PRODUCTO_BENCHMARK][VARCHAR](19) NULL,
+--		[txtCATEGORIA][VARCHAR](100) NULL,
+--		[dteFECHA_AJUSTE][DATETIME] NULL,
+--		[txtDESCRIPCION][VARCHAR](25) NULL, 
+--		[txtFACTOR_AJUSTE][CHAR](1) NULL,
+--		[txtESTATUS_INSTRUMENTO][CHAR](1) NULL,
+--		[txtNEW_VALUE][VARCHAR](19) NULL, 
+--		[txtOLD_VALUE][VARCHAR](19) NULL, 
+--		[txtOLDTv][VARCHAR](10),
+--		[txtOLDEmisora][VARCHAR](10),
+--		[txtOLDSerie][VARCHAR](10)
+--		PRIMARY KEY CLUSTERED (
+--			txtId1
+--			)
+--	)
+--
+--	-- 1. Obtengo universo de instrumentos a procesar
+--	INSERT @tblUniverso (txtId1,txtTV,txtEmisora,txtSerie,txtTipoActivo,intCustomerId)	
+--	SELECT 
+--			i.txtId1,i.txtTv,i.txtEmisora,i.txtSerie,
+--			CASE WHEN i.txtTV IN ('J','JI','JSP','D1','D1SP','IP','IS','IT','L','LD','LP','LS','LT','M','M0','M3','M5','M7','MC','MP','S','S0','S3','S5','SC','SP','XA','D2','D2SP','D3','D3SP','D4','D4SP','D5','D5SP','D6','D6SP') THEN 'B'
+--				 WHEN i.txtTV IN ('*C',	'*CSP') THEN 'C'
+--				 WHEN i.txtTV IN ('51','52','53','54','55','56','56SP') THEN 'I'
+--				 WHEN i.txtTV IN ('OA','OC','OD','OI') THEN 'O'
+--				 WHEN i.txtTV IN ('0','00','1','1A','1AFX','1ASP','1E','1ESP','3','41','1S','YY','YYSP') THEN 'S'
+--				 WHEN i.txtTV IN ('FA','FB','FC','FD','FI','FM','FS','FU') THEN 'T'
+--				 WHEN i.txtTV IN ('WA','WASP','WC','WE','WESP','WI') THEN 'W'
+--				 WHEN i.txtTV IN ('FWD') THEN '3'
+--				 WHEN i.txtTV IN ('94','2U','3U','4U','92','95','96','B','BI','2P','3P','4P','90','91','91SP','93','93SP','97','98','R','R1','R3','R3SP','6U','CC','CP') THEN 'V'
+--				 WHEN i.txtTV IN ('1B','1C','1I','1ISP') THEN '8'
+--				 WHEN i.txtTV IN ('F','FSP') THEN 'D'
+--				 WHEN i.txtTV IN ('IRS','SWT') THEN '2'
+--				 WHEN i.txtTV IN ('2','71','75','D7','D7SP','G','I','PI','Q','QSP','73','76','D8','D8SP','IL','D','P1','JE') THEN 'A'
+--				 WHEN i.txtTV IN ('TR') THEN 'R'
+--			ELSE ' '
+--			END AS txtTipoActivo,
+--			intCustomerId
+--	FROM dbo.tblIds AS i (NOLOCK)
+--			INNER JOIN dbo.tmp_tblActualPrices AS p (NOLOCK)
+--				ON i.txtId1 = p.txtId1
+--	WHERE 
+--		i.txtTV IN (
+--					'J','JI','JSP','D1','D1SP','IP','IS','IT','L','LD','LP','LS','LT','M','M0','M3','M5','M7','MC','MP','S','S0','S3','S5','SC','SP','XA','D2','D2SP','D3','D3SP','D4','D4SP','D5','D5SP','D6','D6SP',
+--					'*C','*CSP',
+--					'51','52','53','54','55','56','56SP',
+--					'OA','OC','OD','OI',
+--					'0','00','1','1A','1AFX','1ASP','1E','1ESP','3','41','1S','YY','YYSP',
+--					'FA','FB','FC','FD','FI','FM','FS','FU',
+--					'WA','WASP','WC','WE','WESP','WI',
+--					'FWD',
+--					'94','2U','3U','4U','92','95','96','B','BI','2P','3P','4P','90','91','91SP','93','93SP','97','98','R','R1','R3','R3SP','6U','CC','CP',
+--					'1B','1C','1I','1ISP',
+--					'F','FSP',
+--					'IRS','SWT',
+--					'2','71','75','D7','D7SP','G','I','PI','Q','QSP','73','76','D8','D8SP','IL','D','P1','JE',
+--					'TR'
+--					)
+--		AND p.txtLiquidation IN ('MD','MP')
+--
+--	-- 2. Cargo información universo a la tabla Intermedia para Obtención de Datos
+--	INSERT @tblVectorPricesBenchMarks (txtId1,txtTv,txtEmisora,txtSerie,txtTIPO_ACTIVO,txtCODIGO_PRODUCTO)
+--	SELECT txtId1,txtTv,txtEmisora,txtSerie,txtTipoActivo,'PiP'+ SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(intCustomerId)))) + LTRIM(STR(intCustomerId))
+--	FROM @tblUniverso
+--
+--	INSERT @tmp_tblUnifiedPricesReport(txtTv,txtEmisora,txtSerie,txtId1,txtLiquidation,dblPRS,txtNEM,txtCUR,txtMOC,txtCOUNTRY,txtSEC)
+--	SELECT 
+--		RTRIM(txtTv),
+--		RTRIM(txtEmisora),
+--		RTRIM(txtSerie),
+--		RTRIM(txtId1),
+--		RTRIM(txtLiquidation),
+--		dblPRS,
+--		RTRIM(txtNEM),
+--		CASE WHEN txtTv IN ('*C','*CSP') THEN SUBSTRING(RTRIM(txtSerie),1,3) ELSE 'MXN' END AS txtCUR,
+--		RTRIM(txtMOC),
+--		RTRIM(txtCOUNTRY),
+--		RTRIM(txtSEC)
+--	FROM dbo.tmp_tblUnifiedPricesReport (NOLOCK)
+--
+--	-- 3. Obtengo la informacion de precios de Vector MD
+--	-- 3.1 Para Items diponibles y defaults
+--	UPDATE v
+--	SET --v.txtCODIGO_PRODUCTO = 'CodigoProd',
+--		v.dteFECHA = @txtDate,
+--		v.dblPRECIO = p.dblPRS,
+--		v.txtNOMBRE = p.txtNEM,
+--		v.txtCODIGO_INTERNACIONAL = RTRIM(p.txtTV) + '_' + RTRIM(p.txtEmisora) + '_' + RTRIM(p.txtSerie),
+--		v.txtDIVISA = p.txtCUR,
+--		v.dblOPEN = p.dblPRS,
+--		v.dblHIGH = p.dblPRS,
+--		v.dblLOW = p.dblPRS,
+--		v.txtVOLUMEN = p.txtMOC,
+--		v.txtPAIS = p.txtCOUNTRY,
+--		v.txtSECTOR = p.txtSEC,
+--		v.txtCODIGO_INTERNACIONAL_BENCHMARK = '',
+--		v.txtDIVISA_BENCHMARK = '',											-- Para todos
+--		v.txtCODIGO_PRODUCTO_BENCHMARK = '', 
+--		v.dteFECHA_AJUSTE =	NULL,							-- Fecha de cambio de identificadores. Fecha de split en acciones
+--		v.txtDESCRIPCION = '',							-- Reporta "Cambio de identificadores" si hay cambio en los identificadores o "Split" si hay  un split en acciones
+--		v.txtFACTOR_AJUSTE = '',							-- Se reportara en blanco hasta que el área de Insumos reporte esta información
+--		v.txtESTATUS_INSTRUMENTO = '1',
+--		v.txtNEW_VALUE = RTRIM(p.txtTV) + '_' + RTRIM(p.txtEmisora) + '_' + RTRIM(p.txtSerie),
+--		v.txtOLD_VALUE = ''
+--	FROM @tmp_tblUnifiedPricesReport AS p
+--			INNER JOIN @tblVectorPricesBenchMarks AS v
+--				ON p.txtId1 = v.txtId1
+--	WHERE 
+--		p.txtLiquidation IN('MD','MP')
+--
+--	-- 3.2 Para EMISOR_PRECIO
+--	UPDATE v
+--	SET v.txtEMISOR_PRECIO = SUBSTRING(RTRIM(p.txtSuperIssuerName),1,19)
+--	FROM dbo.tblSuperIssuersCatalog AS p (NOLOCK)
+--			INNER JOIN @tblVectorPricesBenchMarks AS v
+--				ON p.txtSuperIssuer = v.txtEmisora
+--
+--	-- 3.3 Para CATEGORIA
+--	UPDATE v
+--	SET v.txtCATEGORIA = SUBSTRING(RTRIM(p.txtDescription),1,100)
+--	FROM dbo.tblTVCatalog AS p (NOLOCK)
+--			INNER JOIN @tblVectorPricesBenchMarks AS v
+--				ON p.txtTv = v.txtTv
+--
+--	-- 3.4 Para ESTATUS INSTRUMENTO
+--	UPDATE v
+--	SET v.txtESTATUS_INSTRUMENTO = '0'
+--	FROM dbo.tblFixedPrices AS p (NOLOCK)
+--			INNER JOIN @tblVectorPricesBenchMarks AS v
+--				ON p.txtId1 = v.txtId1
+--	WHERE txtLiquidation IN ('MD','MP')
+--
+--	-- 3.5 Para obtener OLD_VALUE
+--	-- 3.5.1 Obtengo todos los key disponibles para los items: TV,EMISORA,SERIE 
+--	INSERT @tblIdsAddOLD_VALUE (txtId1,dteDate,txtItem,txtValue)
+--	SELECT txtId1,dteDate,txtItem,txtValue
+--	FROM dbo.tblIdsAdd AS tacc (NOLOCK) 
+--	WHERE txtItem IN ('TV','NEC','SER')
+--
+--	-- 3.5.2 Obtengo los Key más recientes
+--	INSERT @tmp_tblKEYsNW_TV(txtId1,dteDate)
+--	SELECT txtId1,MAX(dteDate)
+--	FROM @tblIdsAddOLD_VALUE
+--	WHERE txtItem = 'TV'
+--	GROUP BY txtId1
+--
+--	INSERT @tmp_tblKEYsNW_NEC(txtId1,dteDate)
+--	SELECT txtId1,MAX(dteDate)
+--	FROM @tblIdsAddOLD_VALUE
+--	WHERE txtItem = 'NEC'
+--	GROUP BY txtId1
+--
+--	INSERT @tmp_tblKEYsNW_SER(txtId1,dteDate)
+--	SELECT txtId1,MAX(dteDate)
+--	FROM @tblIdsAddOLD_VALUE
+--	WHERE txtItem = 'SER'
+--	GROUP BY txtId1
+--
+--	-- 	3.5.3 Obtengo penultima fecha de ajuste los penultimos Key
+--	INSERT @tmp_tblKEYsFECHA_AJUSTE
+--	SELECT txtId1,MAX(dteDate)
+--	FROM @tblIdsAddOLD_VALUE
+--	WHERE txtItem IN ('TV','NEC','SER')
+--	GROUP BY txtId1
+--
+--	-- 3.5.4 Para FECHA_AJUSTE
+--	UPDATE v
+--	SET v.dteFECHA_AJUSTE = f.dteDate,
+--		v.txtDESCRIPCION = 'Cambio de identificadores'
+--	FROM @tmp_tblKEYsFECHA_AJUSTE AS f
+--			INNER JOIN @tblVectorPricesBenchMarks AS v
+--				ON f.txtId1 = v.txtId1
+--
+--	-- 3.5.5 Elimino los Items más recientes para tomar el penúltimo cambio
+--	DELETE tac 
+--	FROM 
+--		@tblIdsAddOLD_VALUE AS tac
+--		INNER JOIN @tmp_tblKEYsNW_TV AS tkc
+--			ON tac.txtId1 = tkc.txtId1 
+--				AND tac.dteDate = tkc.dteDate
+--				AND tac.txtItem = 'TV'
+--
+--	DELETE tac 
+--	FROM 
+--		@tblIdsAddOLD_VALUE AS tac
+--		INNER JOIN @tmp_tblKEYsNW_NEC AS tkc
+--			ON tac.txtId1 = tkc.txtId1 
+--				AND tac.dteDate = tkc.dteDate
+--				AND tac.txtItem = 'NEC'
+--
+--	DELETE tac 
+--	FROM 
+--		@tblIdsAddOLD_VALUE AS tac
+--		INNER JOIN @tmp_tblKEYsNW_SER AS tkc
+--			ON tac.txtId1 = tkc.txtId1 
+--				AND tac.dteDate = tkc.dteDate
+--				AND tac.txtItem = 'SER'
+--
+--
+--	-- 3.5.6 Obtengo los penultimos Key
+--	INSERT @tmp_tblKEYsOLD_TV(txtId1,dteDate)
+--	SELECT txtId1,MAX(dteDate)
+--	FROM @tblIdsAddOLD_VALUE
+--	WHERE txtItem = 'TV'
+--	GROUP BY txtId1
+--
+--	INSERT @tmp_tblKEYsOLD_NEC(txtId1,dteDate)
+--	SELECT txtId1,MAX(dteDate)
+--	FROM @tblIdsAddOLD_VALUE
+--	WHERE txtItem = 'NEC'
+--	GROUP BY txtId1
+--
+--	INSERT @tmp_tblKEYsOLD_SER(txtId1,dteDate)
+--	SELECT txtId1,MAX(dteDate)
+--	FROM @tblIdsAddOLD_VALUE
+--	WHERE txtItem = 'SER'
+--	GROUP BY txtId1
+--
+--	-- 3.5.7 Obtengo los valores penúltimo cambio
+--	UPDATE v
+--	SET v.txtOLDTv = RTRIM(tac.txtValue)
+--	FROM 
+--		@tblVectorPricesBenchMarks AS v
+--		INNER JOIN @tmp_tblKEYsOLD_TV AS tkc
+--				ON tkc.txtId1 = v.txtId1
+--		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+--			ON tac.txtId1 = tkc.txtId1 
+--				AND tac.dteDate = tkc.dteDate
+--				AND tac.txtItem = 'TV'
+--	UPDATE v
+--	SET v.txtOLDEmisora = RTRIM(tac.txtValue)
+--	FROM 
+--		@tblVectorPricesBenchMarks AS v
+--		INNER JOIN @tmp_tblKEYsOLD_NEC AS tkc
+--				ON tkc.txtId1 = v.txtId1
+--		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+--			ON tac.txtId1 = tkc.txtId1 
+--				AND tac.dteDate = tkc.dteDate
+--				AND tac.txtItem = 'NEC'
+--
+--	UPDATE v
+--	SET v.txtOLDSerie = RTRIM(tac.txtValue)
+--	FROM 
+--		@tblVectorPricesBenchMarks AS v
+--		INNER JOIN @tmp_tblKEYsOLD_SER AS tkc
+--				ON tkc.txtId1 = v.txtId1
+--		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+--			ON tac.txtId1 = tkc.txtId1 
+--				AND tac.dteDate = tkc.dteDate
+--				AND tac.txtItem = 'SER'
+--
+--	-- 3.5.8 Determino ultimo código asignado
+--	UPDATE v
+--	SET v.txtOLD_VALUE = (CASE WHEN txtOLDTv IS NULL THEN RTRIM(txtTV) ELSE RTRIM(txtOLDTV) END) + '_' + 
+--						(CASE WHEN txtOLDEmisora IS NULL THEN RTRIM(txtEmisora) ELSE RTRIM(txtOLDEmisora) END) + '_' + 
+--						(CASE WHEN txtOLDSerie IS NULL THEN RTRIM(txtSerie) ELSE RTRIM(txtOLDSerie) END)
+--	FROM 
+--		@tblVectorPricesBenchMarks AS v
+--
+--	-- 3.5.9 Elimino los codigos repetidos 
+--	UPDATE v
+--	SET v.txtOLD_VALUE = '',
+--		v.dteFECHA_AJUSTE =	NULL,
+--		v.txtDESCRIPCION = ''
+--	FROM 
+--		@tblVectorPricesBenchMarks AS v
+--	WHERE 
+--		v.txtNEW_VALUE = v.txtOLD_VALUE        
+--
+--	-- Detalle de Información Vector de Precios
+--	INSERT @tblResults (intConsecutivo,txtTV,txtEmisora,txtSerie,txtData)
+--	SELECT 
+--			1,
+--			txtTv,
+--			txtEmisora,
+--			txtSerie, 
+--			RTRIM(txtCODIGO_PRODUCTO) + '|' +
+--			RTRIM(txtTIPO_ACTIVO) + '|' +
+--			CONVERT(CHAR(8),dteFECHA,112) + '|' +
+--			CASE WHEN dblPRECIO IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblPRECIO,6),19,6)) END + '|' +
+--			CASE WHEN txtNOMBRE IS NULL OR txtNOMBRE = '-' OR txtNOMBRE = 'NA' THEN '' ELSE RTRIM(txtNOMBRE) END + '|' +
+--			RTRIM(txtCODIGO_INTERNACIONAL) + '|' +
+--			RTRIM(txtDIVISA) + '|' +
+--			CASE WHEN dblOPEN IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblOPEN,6),19,6)) END + '|' +
+--			CASE WHEN dblHIGH IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblHIGH,6),19,6)) END + '|' +
+--			CASE WHEN dblLOW IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblLOW,6),19,6)) END + '|' +
+--			CASE WHEN txtVOLUMEN IS NULL OR txtVOLUMEN = '-' OR txtVOLUMEN = 'NA' THEN '' ELSE RTRIM(txtVOLUMEN) END + '|' +
+--			CASE WHEN txtEMISOR_PRECIO IS NULL OR txtEMISOR_PRECIO = '-' OR txtEMISOR_PRECIO = 'NA' THEN '' ELSE RTRIM(txtEMISOR_PRECIO) END + '|' +
+--			CASE WHEN txtPAIS IS NULL OR txtPAIS = '-' OR txtPAIS = 'NA' THEN '' ELSE RTRIM(txtPAIS) END + '|' +
+--			CASE WHEN txtSECTOR IS NULL OR txtSECTOR = '-' OR txtSECTOR = 'NA' THEN '' ELSE RTRIM(txtSECTOR) END + '|' +
+--			CASE WHEN txtCODIGO_INTERNACIONAL_BENCHMARK IS NULL OR txtCODIGO_INTERNACIONAL_BENCHMARK = '-' OR txtCODIGO_INTERNACIONAL_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtCODIGO_INTERNACIONAL_BENCHMARK) END + '|' +
+--			CASE WHEN txtDIVISA_BENCHMARK IS NULL OR txtDIVISA_BENCHMARK = '-' OR txtDIVISA_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtDIVISA_BENCHMARK) END + '|' +
+--			CASE WHEN txtCODIGO_PRODUCTO_BENCHMARK IS NULL OR txtCODIGO_PRODUCTO_BENCHMARK = '-' OR txtCODIGO_PRODUCTO_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtCODIGO_PRODUCTO_BENCHMARK) END + '|' +
+--			RTRIM(txtCATEGORIA) + '|' +
+--			CASE WHEN dteFECHA_AJUSTE IS NULL THEN '' ELSE CONVERT(CHAR(8),dteFECHA_AJUSTE,112) END + '|' +
+--			CASE WHEN txtDESCRIPCION IS NULL OR txtDESCRIPCION = '-' OR txtDESCRIPCION = 'NA' THEN '' ELSE RTRIM(txtDESCRIPCION) END + '|' +
+--			CASE WHEN txtFACTOR_AJUSTE IS NULL OR txtFACTOR_AJUSTE = '-' OR txtFACTOR_AJUSTE = 'NA' THEN '' ELSE RTRIM(txtFACTOR_AJUSTE) END + '|' +
+--			RTRIM(txtESTATUS_INSTRUMENTO) + '|' +
+--			CASE WHEN txtNEW_VALUE IS NULL  THEN '' ELSE RTRIM(txtNEW_VALUE) END + '|' +
+--			CASE WHEN txtOLD_VALUE IS NULL  THEN '' ELSE RTRIM(txtOLD_VALUE) END
+--			AS [txtData]
+--	FROM @tblVectorPricesBenchMarks
+--
+--	-- Detalle de Información BenchMarks
+--	INSERT @tblResults (intConsecutivo,txtTV,txtEmisora,txtSerie,txtData)
+--	SELECT 
+--			2,
+--			p.txtType, -- txtTV
+--			p.txtType, -- txtEmisora
+--			p.txtType, -- txtSerie
+--			'PiPB'+ SUBSTRING('000000000',1,9-LEN(LTRIM(STR(c.intCustomerId)))) + LTRIM(STR(c.intCustomerId))  + '|' +
+--			'A'  + '|' +
+--			CONVERT(CHAR(8),p.dteDate,112) + '|' +
+--			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +
+--			CASE WHEN c.txtIndexNameMD IS NULL OR c.txtIndexNameMD = '-' OR c.txtIndexNameMD = 'NA' THEN '' ELSE RTRIM(c.txtIndexNameMD) END + '|' +
+--			''  + '|' + -- Codigo Internacional
+--			''  + '|' + -- Divisa
+--			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +   -- OPEN
+--			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +	 -- HIGH
+--			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +	 -- LOW
+--			''  + '|' + -- VOLUMEN
+--			''  + '|' + -- EMISOR_PRECIO
+--			''  + '|' + -- PAIS
+--			''  + '|' + -- SECTOR
+--			''  + '|' + -- CODIGO_INTERNACIONAL_BENCHMARK
+--			'MXN'  + '|' + -- DIVISA_BENCHMARK
+--			'PiPB'+ SUBSTRING('000000000',1,9-LEN(LTRIM(STR(c.intCustomerId)))) + LTRIM(STR(c.intCustomerId))  + '|' +  -- CODIGO_PRODUCTO_BENCHMARK
+--			'Benchmark' + '|' +
+--			''  + '|' + -- FECHA_AJUSTE
+--			''  + '|' + -- DESCRIPCION
+--			''  + '|' + -- FACTOR_AJUSTE
+--			'1'  + '|' + -- ESTATUS_INSTRUMENTO
+--			''  + '|' + -- NEW_VALUE
+--			''			-- OLD_VALUE
+--			AS [txtData]
+--	FROM dbo.tblBenchCatalog AS c (NOLOCK)
+--		INNER JOIN dbo.tblPiPIndexes AS p (NOLOCK)
+--			ON c.txtType = p.txtType AND c.intTaxes = p.intTaxes
+--	WHERE p.dteDate = @txtDate
+--		AND p.txtType IN (
+--			'CEDEVIS>>1A','SHF','SHF-MPS','SHF-UDI','BANK>>CP','BANK>>LP','BANK','TFB','BORHIS','STD_COR_FLO_-=5',
+--			'STD_COR_FLO_+5','STD_COR_FIX_-=3','STD_COR_FIX_3-7','STD_COR_FIX_+7','D2S','CORP_M>>CP','CORP_M>>LP',
+--			'CORP_M','PIPGUB','LS','LD','LATMEXBonds5Y','LATMEXBonds10Y','M_CI','M_','LATMEXBonds>10Y','IS','IP',
+--			'IT','XA','2UCI','2U','BI>>182','BI>>028','BI>>364','BI>>007','BI>>091','BI>>090','B_','LATMEXCetes',
+--			'PIPF10A','PIPF13M','PIPF1M','PIPF12M','M_>>20AP','M_>>30AP','PIPF3M','PIPF3A','PIPF5A','PIPF6M','PIPF',
+--			'PIPFLCP','PIPFLLP','PIPFL2','PIPFL','FONDGUBB','TFGOBAN','FONDGUBN','PI','PIPR10A','PIPR1A','PIPR20A',
+--			'PIPR30A','PIPR5A','PIPR20A_CI','PIPREAL_CI','PIPR30A_CI','PIPREAL','S_CI','S_','S_DUR>>5-6','LATMEXUDIS',
+--			'D1','D1-USD>>10AP','D1-USD>>20AP','D1-USD>>LP','D1-USD>>5AP','D1-USD>>1AP','D1-USD','D1-EUR','LATMEXUMS',
+--			'PIPIPAB')
+--		AND p.intTaxes = 0
+--
+--
+--	-- Valida la información 
+--	IF ((SELECT count(*) FROM @tblResults) <= 1)
+--
+--		BEGIN
+--			RAISERROR ('ERROR: Falta Informacion', 16, 1)
+--		END
+--
+--	ELSE
+--			-- Reporto informacion
+--			SELECT RTRIM(txtData)
+--			FROM @tblResults
+--			ORDER BY intConsecutivo,txtTV,txtEmisora,txtSerie
+--
+--	SET NOCOUNT OFF 
+--
+--END
+--GO
+--
+--
+----   Autor:      Mike Ramírez        
+----   Creacion:   05:45 p.m. 2011-01-19        
+----   Descripcion:  Procedimiento que genera producto FE_YYYYMMDD.txt    
+--CREATE PROCEDURE dbo.usp_productos_TechRules;2    
+--  @txtDate AS DATETIME    
+--AS       
+--BEGIN      
+--    
+--	SET NOCOUNT ON  
+--
+--	-- Creo tabla temporal de resultados    
+--	DECLARE @tblResult TABLE (    
+--	  [intSection][INTEGER],    
+--	  [txtData][VARCHAR](8000)
+--	 )    
+--   
+--	 -- Creo tabla temporal para extraer el universo de datos  
+--	DECLARE @tmp_tblTemp TABLE (
+--	  [IntCustId] INT,
+--	  [txtISD] CHAR(8),
+--	  [txtSec] CHAR(50),
+--	  [txtSerie] CHAR(6),
+--	  [intTit] VARCHAR(50),
+--	  [intPatr] CHAR (50),
+--	  [txtDesc] CHAR(400)  
+--	  PRIMARY KEY(IntCustId)	
+--	)
+--
+--	INSERT @tmp_tblTemp (IntCustId,txtISD,txtSec,txtSerie,intTit,intPatr,txtDesc)
+--	SELECT
+--		id.intCustomerId,
+--		CASE WHEN upr.txtISD = '-' THEN '' ELSE CONVERT(CHAR(8),CONVERT(DATETIME, ISNULL(upr.txtISD, '1900-01-01')),112) END,
+--		upr.txtSEC,
+--		upr.txtSerie,
+--		upr.txtTIT,
+--		upr.txtMOC,
+--		CASE WHEN upr.txttv = '51' THEN 'Acciones de Sociedades de Inversión Instrumentos de Deuda' 
+--			 WHEN upr.txttv = '52' THEN 'Acciones de Sociedades de Inversión Común Renta Variable'
+--			 WHEN upr.txttv = '53' THEN 'Acciones de Sociedades de Inversión de Riesgo'
+--			 WHEN upr.txttv = '54' THEN 'Acciones de Sociedades de Inversión de Fondos para el retiro'
+--			 WHEN upr.txttv = '55' THEN 'Acciones de Sociedades que integran sus activos por otras sociedades de inversión'
+-- 			 WHEN upr.txttv = '56' THEN 'Sociedades de Inversión Extranjeras'
+-- 			 WHEN upr.txttv = '1I' THEN 'Tracks Extranjeros (Fix)'
+-- 			 WHEN upr.txttv = '1ISP' THEN 'Tracks Extranjeros (Spot)'
+-- 			 WHEN upr.txttv = '1C' THEN 'Tracks Deuda Corporativa'
+-- 			 WHEN upr.txttv = '1B' THEN 'Títulos Referenciados Acciones'
+--		END AS Descripcion
+--	FROM dbo.tmp_tblUnifiedPricesReport AS upr
+--		INNER JOIN tblids AS id
+--		ON upr.txtId1 = id.txtId1
+--	WHERE upr.txtTv IN ('51','52','53','54','55','56','1I','1ISP','1C','1B') AND upr.dtedate = @txtDate
+--	ORDER BY Descripcion
+--
+--	INSERT @tblResult  (intSection,txtData) 
+--	SELECT 1,
+--		'PiP'+SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(IntCustId)))) + LTRIM(STR(IntCustId))+'|'+
+--		RTRIM(txtISD) +'|'+
+--		CASE WHEN txtSEC IS NULL THEN '' ELSE RTRIM(txtSEC) END +'|'+
+--		RTRIM(txtSerie)+'|'+'|'+'|'+
+--		CASE WHEN intTit IS NULL OR intTit = '-' OR intTit = 'NA' THEN '' ELSE RTRIM(intTit) END +'|'+
+--		CASE WHEN intPatr IS NULL OR intPatr = '-' OR intPatr = 'NA' THEN '' ELSE RTRIM(intPatr) END +'|'+'|'+
+--		RTRIM(txtDesc) 
+--	 FROM @tmp_tblTemp
+--
+-- -- Valida la información   
+--	IF ((SELECT count(*) FROM @tblResult) <= 1)    
+--		 BEGIN  
+--			 RAISERROR ('ERROR: Falta Informacion', 16, 1)  
+--		 END    
+--	ELSE  
+--		 -- Reporto informacion     
+--		 SELECT LTRIM(txtData)     
+--		 FROM @tblResult    
+--		 ORDER BY intSection    
+--	    
+--	SET NOCOUNT OFF     
+--    
+--END
+--GO
+--
+----   Autor:      Mike Ramírez        
+----   Creacion:   08:53 a.m. 2011-01-21        
+----   Descripcion:  Procedimiento que genera producto RF_YYYYMMDD.txt    
+--CREATE PROCEDURE dbo.usp_productos_TechRules;3    
+--  @txtDate AS DATETIME    
+--    
+--AS       
+--BEGIN      
+--    
+--	SET NOCOUNT ON  
+--
+--	-- Creo tabla temporal de resultados    
+--	DECLARE @tblResult TABLE (    
+--	[intSection][INTEGER],    
+--	[txtData][VARCHAR](8000)    
+--	)    
+--
+--	 -- Creo tabla temporal para extraer el universo de datos  
+--	DECLARE @tmp_tblTemp TABLE (
+--	  [IntCustId] INT,
+--	  [txtISD] CHAR(8),
+--	  [txtMTD] CHAR(8),
+--	  [txtCAL] CHAR(20),
+--	  [intNOM] CHAR(20),
+--	  [txtCPA] CHAR(20),
+--	  [intfloat] CHAR(10),
+--	  [txtCPF] CHAR(20),
+--	  [txtNCR] CHAR(20),
+--	  [txtFIQ] CHAR(20),
+--	  [dteDate] CHAR(8),
+--	  [dblCPD] CHAR(20),
+--	  [dblYTM] CHAR(20),
+--	  [txtCMT] CHAR(20),
+--	  [txtDMC] CHAR(20),
+--	  [txtDMF] CHAR(20)
+--	  PRIMARY KEY(IntCustId)	
+--	)
+--	  
+--	INSERT @tmp_tblTemp (IntCustId,txtISD,txtMTD,txtCAL,intNOM,txtCPA,intfloat,txtCPF,txtNCR,txtFIQ,dteDate,dblCPD,dblYTM,txtCMT,txtDMC,txtDMF) 
+--	SELECT
+--	  id.intCustomerId,
+--	  CASE WHEN upr.txtISD = '-' THEN '' ELSE CONVERT(CHAR(8),CONVERT(DATETIME, ISNULL(upr.txtISD, '1900-01-01')),112) END,
+--	  CASE WHEN upr.txtMTD = '-' THEN '' ELSE CONVERT(CHAR(8),CONVERT(DATETIME, ISNULL(upr.txtMTD, '1900-01-01')),112) END,
+--	  bs.txtcalendar,
+--	  upr.txtNOM,
+--	  upr.dblCPA,
+--	  bs.intfixfloat,
+--	  upr.txtCPF,
+--	  upr.txtNCR,
+--	  upr.txtFIQ,
+--	  CONVERT(CHAR(8),upr.dteDate,112),
+--	  upr.dblCPD,
+--	  upr.dblYTM,
+--	  upr.txtCMT,
+--	  upr.txtDMC,
+--	  upr.txtDMF
+--	FROM dbo.tmp_tblUnifiedPricesReport AS upr
+--		INNER JOIN tblids AS id
+--		ON upr.txtId1 = id.txtId1
+--		INNER JOIN tblbonds as bs
+--		ON upr.txtid1 = bs.txtid1
+--	WHERE id.txtTv IN ('94','D3','D3SP','D7','D7SP','F','FSP','G','I','IL','J','JI','JSP','Q','QSP','2U','3U','4U','6U',
+--	'92','95','96','B','BI','CC','CP','D1','D1SP','IP','IS','IT','L','LD','LP','LS','LT','M','M0','M3',
+--	'M5','M7','MC','MP','PI','S','S0','S3','S5','SC','SP','TR','XA','2','2P','3P','4P','71','73','75','76',
+--	'90','91','91SP','93','93SP','97','98','D','D2','D2SP','P1','R','R1','R3','R3SP','D4','D4SP','D5','D5SP',
+--	'D6','D6SP','D8','D8SP','JE') AND upr.txtliquidation = 'MD' AND dtedate = @txtDate
+--
+--	INSERT @tblResult (intSection,txtData) 
+--	SELECT
+--		1,
+--		'PiP'+SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(IntCustId)))) + LTRIM(STR(IntCustId))+'|'+
+--		RTRIM(txtISD)+'|'+
+--		RTRIM(txtMTD)+'|'+
+--		RTRIM(txtCAL)+'|'+
+--		RTRIM(intNOM)+'|'+
+--		RTRIM(txtCPA)+'|'+
+--		CASE WHEN intfloat IS NULL OR intfloat = '-' OR intfloat = 'NA' THEN '' ELSE RTRIM(intfloat) END+'|'+
+--		''+'|'+
+--		CASE WHEN txtCPF IS NULL OR txtCPF = '-' OR txtCPF = 'NA' THEN '' ELSE RTRIM(txtCPF) END+'|'+
+--		CASE WHEN txtNCR IS NULL OR txtNCR = '-' OR txtNCR = 'NA' THEN '' ELSE RTRIM(txtNCR) END+'|'+
+--		'MXN'+'|'+
+--		''+'|'+
+--		''+'|'+
+--		CASE WHEN txtFIQ IS NULL OR txtFIQ = '-' OR txtFIQ = 'NA' THEN '' ELSE RTRIM(txtFIQ) END+'|'+
+--		RTRIM(dteDate)+'|'+
+--		RTRIM(dblCPD)+'|'+
+--		RTRIM(dblYTM)+'|'+
+--		RTRIM(dblYTM)+'|'+
+--		CASE WHEN txtCMT IS NULL OR txtCMT = '-' OR txtCMT = 'NA' THEN '' ELSE RTRIM(txtCMT) END+'|'+
+--		CASE WHEN txtCMT IS NULL OR txtCMT = '-' OR txtCMT = 'NA' THEN '' ELSE RTRIM(txtCMT) END+'|'+
+--		CASE WHEN txtDMC IS NULL OR txtDMC = '-' OR txtDMC = 'NA' THEN '' ELSE RTRIM(txtDMC) END+'|'+
+--		CASE WHEN txtDMC IS NULL OR txtDMC = '-' OR txtDMC = 'NA' THEN '' ELSE RTRIM(txtDMC) END+'|'+
+--		CASE WHEN txtDMF IS NULL OR txtDMF = '-' OR txtDMF = 'NA' THEN '' ELSE RTRIM(txtDMF) END+'|'+
+--		CASE WHEN txtDMF IS NULL OR txtDMF = '-' OR txtDMF = 'NA' THEN '' ELSE RTRIM(txtDMF) END
+--	FROM @tmp_tblTemp
+--
+-- -- Valida la información   
+--	IF ((SELECT count(*) FROM @tblResult) <= 1)    
+--		 BEGIN  
+--			 RAISERROR ('ERROR: Falta Informacion', 16, 1)  
+--		 END    
+--	ELSE  
+--		 -- Reporto informacion     
+--		 SELECT LTRIM(txtData)     
+--		 FROM @tblResult    
+--		 ORDER BY intSection    
+--	    
+--	SET NOCOUNT OFF     
+--    
+--END
+--GO
+
+-- ---------------------------------------------------------------------------
+--  Autor:         	Lic. René López Salinas
+--  Creacion:		05:30 p.m. 2011-01-18
+--  Descripcion:    Procedimiento que genera los historicos del producto CB_yyyymmdd.txt
+--  Modificado por:	JATO
+--  Modificacion:	09:42 a.m. 2011-01-25
+--  Descripcion:    refactorizacion de extraccion de analiticos
+-- ---------------------------------------------------------------------------
+
+CREATE PROCEDURE dbo.usp_productos_TECHRULES;4
+  @txtDate AS DATETIME
+AS   
+BEGIN  
+
+	SET NOCOUNT ON
+	SET ANSI_WARNINGS OFF
+
+	-- Tabla de Resultados
+	DECLARE @tblResults TABLE (
+		[intConsecutivo][INT],
+		[txtTv][VARCHAR](15),
+		[txtEmisora][VARCHAR](15),
+		[txtSerie][VARCHAR](15),
+		[txtData][VARCHAR](800),
+			PRIMARY KEY(intConsecutivo, txtTv, txtEmisora, txtData)
+	)
+
+	-- Tabla temporal Calendario de Dias habiles
+	DECLARE @tmp_tblDiasHabiles TABLE (
+		dteDate DATETIME,
+		PRIMARY KEY(dteDate)
+	)
+
+	-- Tabla Universo de Instrumentos a procesar
+	DECLARE @tblUniverso TABLE (
+		[txtId1][CHAR](11),
+		[txtTv][VARCHAR](10),
+		[txtEmisora][VARCHAR](10),
+		[txtSerie][VARCHAR](10),
+		[txtTipoActivo][CHAR](1),
+		[intCustomerId][INT]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	-- Tabla OLD_VALUE
+	DECLARE @tblIdsAddOLD_VALUE TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME],
+		[txtItem][CHAR](10),
+		[txtValue][VARCHAR](50)
+		PRIMARY KEY CLUSTERED (
+			txtId1,dteDate,txtItem
+			)
+	)
+
+	DECLARE @tmp_tblKEYsNW_TV TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsNW_NEC TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsNW_SER TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsOLD_TV TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsOLD_NEC TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsOLD_SER TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblKEYsFECHA_AJUSTE TABLE (
+		[txtId1][CHAR](11),
+		[dteDate][DATETIME]
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	DECLARE @tmp_tblPrices TABLE (
+		[dteDate] [datetime] NOT NULL,
+		[txtID1] [char](11) NOT NULL,
+		[txtLiquidation] [char](3) NOT NULL,
+		[txtItem] [char](3) NOT NULL,
+		[dblValue] [float] NULL,
+		[intFlag] [int] NULL,
+		PRIMARY KEY CLUSTERED (
+			dteDate,txtID1,txtLiquidation,txtItem
+			)
+	)
+
+	-- Tabla Intermedia para Obtención de Datos
+	DECLARE @tblVectorPricesBenchMarks TABLE (
+		[txtId1][CHAR](11),
+		[txtTv][VARCHAR](10),
+		[txtEmisora][VARCHAR](10),
+		[txtSerie][VARCHAR](10),
+		[txtCODIGO_PRODUCTO][CHAR](13),
+		[txtTIPO_ACTIVO][CHAR](1),
+		[dteFECHA][DATETIME],
+		[dblPRECIO][FLOAT],
+		[txtNOMBRE][VARCHAR](50) NULL,
+		[txtCODIGO_INTERNACIONAL][VARCHAR](19) NULL,
+		[txtDIVISA][VARCHAR](3) NULL,
+		[dblOPEN][FLOAT] NULL,
+		[dblHIGH][FLOAT] NULL,
+		[dblLOW][FLOAT] NULL,
+		[txtVOLUMEN][VARCHAR](20) NULL,
+		[txtEMISOR_PRECIO][VARCHAR](19) NULL,   -- (Item: txtSuperIssuerName -> tabla tblSuperIssuersCatalog)
+		[txtPAIS][VARCHAR](2) NULL,
+		[txtSECTOR][VARCHAR](50) NULL,				-- (Item: SEC)
+		[txtCODIGO_INTERNACIONAL_BENCHMARK][CHAR](1) NULL,
+		[txtDIVISA_BENCHMARK][VARCHAR](3) NULL,         -- MXN para todos
+		[txtCODIGO_PRODUCTO_BENCHMARK][VARCHAR](19) NULL,
+		[txtCATEGORIA][VARCHAR](100) NULL,
+		[dteFECHA_AJUSTE][DATETIME] NULL,
+		[txtDESCRIPCION][VARCHAR](25) NULL, 
+		[txtFACTOR_AJUSTE][CHAR](1) NULL,
+		[txtESTATUS_INSTRUMENTO][CHAR](1) NULL,
+		[txtNEW_VALUE][VARCHAR](19) NULL, 
+		[txtOLD_VALUE][VARCHAR](19) NULL, 
+		[txtOLDTv][VARCHAR](10),
+		[txtOLDEmisora][VARCHAR](10),
+		[txtOLDSerie][VARCHAR](10)
+		PRIMARY KEY CLUSTERED (
+			txtId1
+			)
+	)
+
+	-- Inicialización de variables
+	DECLARE @dteDaysTrading AS DATETIME
+	SET @dteDaysTrading = '20001101'   -- Fecha determinada en la Base de Datos Historica
+
+	-- Obtención de calendario días hábiles anteriores 
+	INSERT @tmp_tblDiasHabiles (dteDate)
+	SELECT dteDate
+	FROM MxFixIncome.dbo.fun_get_trading_dates(@dteDaysTrading, @txtDate,  'MX')
+
+	-- 1. Carga de información histórica de precios
+	INSERT @tmp_tblPrices (dteDate,txtID1,txtLiquidation,txtItem,dblValue,intFlag)
+	SELECT 
+			vwHP.dteDate,
+			vwHP.txtID1,
+			vwHP.txtLiquidation,
+			vwHP.txtItem,
+			vwHP.dblValue,
+			vwHP.intFlag 
+	FROM MxFixIncome.dbo.tblIds AS i (NOLOCK) 
+			INNER JOIN MxFixIncomeHist.dbo.vw_historic_prices AS vwHP (NOLOCK) 
+				ON i.txtId1 = vwHP.txtId1
+	WHERE 
+		 vwHP.dteDate = @txtDate
+		 AND vwHP.txtLiquidation IN ('MD','MP')
+		 AND vwHP.txtItem IN ('PRS','PAV')
+	 	 AND i.txtTV IN (
+					'J','JI','JSP','D1','D1SP','IP','IS','IT','L','LD','LP','LS','LT','M','M0','M3','M5','M7','MC','MP','S','S0','S3','S5','SC','SP','XA','D2','D2SP','D3','D3SP','D4','D4SP','D5','D5SP','D6','D6SP',
+					'*C','*CSP',
+					'51','52','53','54','55','56','56SP',
+					'OA','OC','OD','OI',
+					'0','00','1','1A','1AFX','1ASP','1E','1ESP','3','41','1S','YY','YYSP',
+					'FA','FB','FC','FD','FI','FM','FS','FU',
+					'WA','WASP','WC','WE','WESP','WI',
+					'FWD',
+					'94','2U','3U','4U','92','95','96','B','BI','2P','3P','4P','90','91','91SP','93','93SP','97','98','R','R1','R3','R3SP','6U','CC','CP',
+					'1B','1C','1I','1ISP',
+					'F','FSP',
+					'IRS','SWT',
+					'2','71','75','D7','D7SP','G','I','PI','Q','QSP','73','76','D8','D8SP','IL','D','P1','JE',
+					'TR'
+					)
+
+	-- 2. Obtengo informacion de instrumentos a procesar
+	-- 2.1 Obtengo universo de instrumentos a procesar
+	INSERT @tblUniverso (txtId1,txtTV,txtEmisora,txtSerie,txtTipoActivo,intCustomerId)	
+	SELECT DISTINCT
+			i.txtId1,i.txtTv,i.txtEmisora,i.txtSerie,
+			CASE WHEN i.txtTV IN ('J','JI','JSP','D1','D1SP','IP','IS','IT','L','LD','LP','LS','LT','M','M0','M3','M5','M7','MC','MP','S','S0','S3','S5','SC','SP','XA','D2','D2SP','D3','D3SP','D4','D4SP','D5','D5SP','D6','D6SP') THEN 'B'
+				 WHEN i.txtTV IN ('*C',	'*CSP') THEN 'C'
+				 WHEN i.txtTV IN ('51','52','53','54','55','56','56SP') THEN 'I'
+				 WHEN i.txtTV IN ('OA','OC','OD','OI') THEN 'O'
+				 WHEN i.txtTV IN ('0','00','1','1A','1AFX','1ASP','1E','1ESP','3','41','1S','YY','YYSP') THEN 'S'
+				 WHEN i.txtTV IN ('FA','FB','FC','FD','FI','FM','FS','FU') THEN 'T'
+				 WHEN i.txtTV IN ('WA','WASP','WC','WE','WESP','WI') THEN 'W'
+				 WHEN i.txtTV IN ('FWD') THEN '3'
+				 WHEN i.txtTV IN ('94','2U','3U','4U','92','95','96','B','BI','2P','3P','4P','90','91','91SP','93','93SP','97','98','R','R1','R3','R3SP','6U','CC','CP') THEN 'V'
+				 WHEN i.txtTV IN ('1B','1C','1I','1ISP') THEN '8'
+				 WHEN i.txtTV IN ('F','FSP') THEN 'D'
+				 WHEN i.txtTV IN ('IRS','SWT') THEN '2'
+				 WHEN i.txtTV IN ('2','71','75','D7','D7SP','G','I','PI','Q','QSP','73','76','D8','D8SP','IL','D','P1','JE') THEN 'A'
+				 WHEN i.txtTV IN ('TR') THEN 'R'
+			ELSE ' '
+			END AS txtTipoActivo,
+			intCustomerId
+	FROM MxFixIncome.dbo.tblIds AS i (NOLOCK)
+			INNER JOIN @tmp_tblPrices AS p 
+				ON i.txtId1 = p.txtId1
+
+	-- 2.2 Cargo información universo a la tabla Intermedia para Obtención de Datos
+	INSERT @tblVectorPricesBenchMarks (txtId1,txtTv,txtEmisora,txtSerie,txtTIPO_ACTIVO,txtCODIGO_PRODUCTO,dteFECHA)
+	SELECT 
+			txtId1,
+			txtTv,
+			txtEmisora,
+			txtSerie,
+			txtTipoActivo,
+			'PiP'+ SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(intCustomerId)))) + LTRIM(STR(intCustomerId)),
+			@txtDate
+	FROM @tblUniverso
+
+	-- 2.3 Obtengo complemento de información disponible y defaults
+	UPDATE v
+	SET 
+		v.dblPRECIO = p.dblValue,
+		v.txtDIVISA = (CASE WHEN txtTv IN ('*C','*CSP') THEN SUBSTRING(RTRIM(txtSerie),1,3) ELSE 'MXN' END),
+		v.dblOPEN = p.dblValue,
+		v.dblHIGH = p.dblValue,
+		v.dblLOW = p.dblValue,
+		v.txtCODIGO_INTERNACIONAL_BENCHMARK = '',
+		v.txtDIVISA_BENCHMARK = '',
+		v.txtCODIGO_PRODUCTO_BENCHMARK = '', 
+		v.txtFACTOR_AJUSTE = '',
+		v.txtESTATUS_INSTRUMENTO = '1',
+		v.txtCODIGO_INTERNACIONAL = RTRIM(v.txtTV) + '_' + RTRIM(v.txtEmisora) + '_' + RTRIM(v.txtSerie)
+	FROM @tblVectorPricesBenchMarks AS v
+			INNER JOIN @tmp_tblPrices AS p
+				ON v.txtId1 = p.txtId1
+
+	-- 3. Obtengo la informacion Historica de los analiticos MD - NEM,MOC,COUNTRY,SEC
+
+	-- mapa instrumento vs analitico	
+	DECLARE  @tmp_tblAnalyticsMap TABLE(
+		txtId1 CHAR(11),
+		txtItem CHAR(10),
+		bitStatus BIT,
+		PRIMARY KEY(txtId1,txtItem)
+	)
+
+	INSERT @tmp_tblAnalyticsMap (txtId1, txtItem, bitStatus)
+	SELECT 
+		txtId1,
+		txtItem,
+		0
+	FROM 
+		@tblUniverso,
+		tblItemsCatalog AS ic(NOLOCK)
+	WHERE
+		ic.txtItem IN ('NEM','MOC','COUNTRY','SEC')
+
+	-- mapa instrumento item vs maxima fecha
+	DECLARE @tmp_tblAnalyticsDates  TABLE (
+		txtId1 CHAR(11),
+		txtItem char(10),
+		dteDate DATETIME,
+			PRIMARY KEY(txtId1,txtItem)
+	)
+
+	DECLARE @tmp_tblAnalytics TABLE (
+		txtId1 CHAR(11),
+		txtItem char(10),
+		txtValue VARCHAR(50),
+		PRIMARY KEY(txtId1,txtItem)
+	)
+
+	DECLARE @intAnio AS INT
+	DECLARE @dteEnd AS DATETIME
+	SET @intAnio = YEAR(@txtDate)
+
+	WHILE @intAnio >= 2000
+	BEGIN
+
+		-- elimino la memoria de fechas
+		DELETE FROM @tmp_tblAnalyticsDates
+
+		-- proceso tabla por tabla: 2009 - infinito
+		IF @intAnio >= 2009
+		BEGIN
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20100101' AND @txtDate		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2008
+		ELSE IF @intAnio = 2008
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20081231'
+				SET @dteEnd = '20081231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2008.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20080101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2008.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2007
+		ELSE IF @intAnio = 2007
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20071231'
+				SET @dteEnd = '20071231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2007.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20070101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2007.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2006
+		ELSE IF @intAnio = 2006
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20061231'
+				SET @dteEnd = '20061231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2006.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20060101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2006.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2005
+		ELSE IF @intAnio = 2005
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20051231'
+				SET @dteEnd = '20051231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2005.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20050101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2005.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2004
+		ELSE IF @intAnio = 2004
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20041231'
+				SET @dteEnd = '20041231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2004.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20040101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2004.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2003
+		ELSE IF @intAnio = 2003
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20031231'
+				SET @dteEnd = '20031231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2003.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20030101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2003.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2002
+		ELSE IF @intAnio = 2002
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20021231'
+				SET @dteEnd = '20021231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2002.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20020101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2002.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2001
+		ELSE IF @intAnio = 2001
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20011231'
+				SET @dteEnd = '20011231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2001.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20010101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2001.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- proceso tabla por tabla: 2000
+		ELSE IF @intAnio = 2000
+		BEGIN
+
+			SET @dteEnd = @txtDate
+			IF @dteEnd > '20001231'
+				SET @dteEnd = '20001231'
+
+			INSERT @tmp_tblAnalyticsDates (txtId1, txtItem, dteDate)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,
+				MAX(a.dteDate)
+			FROM 
+				MxFixIncomeHist_2000.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsMap AS map 
+				ON 
+					a.txtId1 = map.txtId1
+					AND a.txtItem = map.txtItem
+					AND a.txtLiquidation = 'MD'
+					AND map.bitStatus = 0
+				INNER JOIN @tmp_tblDiasHabiles AS d
+				ON 
+					a.dteDate = d.dteDate
+					AND d.dteDate BETWEEN '20000101' AND @dteEnd		
+			GROUP BY 
+				a.txtId1,
+				a.txtItem
+
+			INSERT @tmp_tblAnalytics (txtId1, txtItem, txtValue)
+			SELECT TOP 100000
+				a.txtId1,
+				a.txtItem,	
+				a.txtValue
+			FROM 
+				MxFixIncomeHist_2000.dbo.tblAnalytics AS a (NOLOCK)
+				INNER JOIN @tmp_tblAnalyticsDates AS ad 
+				ON
+					a.dteDate = ad.dteDate
+					AND a.txtId1 = ad.txtId1
+					AND a.txtItem = ad.txtItem
+					AND a.txtLiquidation = 'MD'
+
+		END
+
+		-- marco los instrumentos ya registrados
+		UPDATE am
+		SET bitStatus = 1
+		FROM 
+			@tmp_tblAnalyticsDates AS ad
+			INNER JOIN @tmp_tblAnalyticsMap AS am
+			ON 
+				ad.txtId1 = am.txtId1
+				AND ad.txtItem = am.txtItem
+
+		-- recorro el anio...
+		SET @intAnio = @intAnio - 1
+
+	END
+
+	-- 3.2 Obtengo los valores encontrados en los históricos
+	-- NEM
+	UPDATE v
+	SET v.txtNOMBRE = p.txtValue
+	FROM @tmp_tblAnalytics  AS p 
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtId1 = v.txtId1
+	WHERE txtItem = 'NEM'
+
+	-- MOC
+	UPDATE v
+	SET v.txtVOLUMEN = p.txtValue
+	FROM @tmp_tblAnalytics  AS p 
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtId1 = v.txtId1
+	WHERE txtItem = 'MOC'
+
+	-- COUNTRY
+	UPDATE v
+	SET v.txtPAIS = p.txtValue
+	FROM @tmp_tblAnalytics  AS p
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtId1 = v.txtId1
+	WHERE txtItem = 'COUNTRY'
+
+	-- SEC
+	UPDATE v
+	SET v.txtSECTOR = p.txtValue
+	FROM @tmp_tblAnalytics  AS p
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtId1 = v.txtId1
+	WHERE txtItem = 'SEC'
+
+	-- 3.3 Para Items diponibles y defaults
+	-- DEFAULTS
+	UPDATE v
+		SET v.dteFECHA_AJUSTE =	NULL,						-- Fecha de cambio de identificadores. Fecha de split en acciones
+		v.txtDESCRIPCION = '',							-- Reporta "Cambio de identificadores" si hay cambio en los identificadores o "Split" si hay  un split en acciones
+		v.txtNEW_VALUE = RTRIM(u.txtTV) + '_' + RTRIM(u.txtEmisora) + '_' + RTRIM(u.txtSerie),
+		v.txtOLD_VALUE = ''
+	FROM @tblVectorPricesBenchMarks AS v
+			INNER JOIN @tblUniverso AS u
+				ON v.txtId1 = u.txtId1
+
+	-- EMISOR_PRECIO
+	UPDATE v
+	SET v.txtEMISOR_PRECIO = SUBSTRING(RTRIM(p.txtSuperIssuerName),1,19)
+	FROM dbo.tblSuperIssuersCatalog AS p (NOLOCK)
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtSuperIssuer = v.txtEmisora
+
+	-- CATEGORIA
+	UPDATE v
+	SET v.txtCATEGORIA = SUBSTRING(RTRIM(p.txtDescription),1,100)
+	FROM dbo.tblTVCatalog AS p (NOLOCK)
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtTv = v.txtTv
+
+	-- Para ESTATUS INSTRUMENTO
+	UPDATE v
+	SET v.txtESTATUS_INSTRUMENTO = '0'
+	FROM dbo.tblFixedPrices AS p (NOLOCK)
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON p.txtId1 = v.txtId1
+	WHERE txtLiquidation IN ('MD','MP')
+
+	-- 4.5 Para obtener OLD_VALUE
+	-- 4.5.1 Obtengo todos los key disponibles para los items: TV,EMISORA,SERIE 
+	INSERT @tblIdsAddOLD_VALUE (txtId1,dteDate,txtItem,txtValue)
+	SELECT txtId1,dteDate,txtItem,txtValue
+	FROM dbo.tblIdsAdd AS tacc (NOLOCK) 
+	WHERE dteDate <= @txtDate
+		AND txtItem IN ('TV','NEC','SER')
+
+	-- 4.5.2 Obtengo los Key más recientes
+	INSERT @tmp_tblKEYsNW_TV(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'TV'
+	GROUP BY txtId1
+
+	INSERT @tmp_tblKEYsNW_NEC(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'NEC'
+	GROUP BY txtId1
+
+	INSERT @tmp_tblKEYsNW_SER(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'SER'
+	GROUP BY txtId1
+
+	-- 4.5.3 Obtengo los valores a la fecha
+	UPDATE v
+	SET v.txtTV = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsNW_TV AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'TV'
+	UPDATE v
+	SET v.txtEmisora = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsNW_NEC AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'NEC'
+
+	UPDATE v
+	SET v.txtSerie = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsNW_SER AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'SER'
+
+	-- NEW_VALUE: Valores de identificadores vigentes a esas fechas
+	UPDATE v
+		SET v.txtNEW_VALUE = RTRIM(v.txtTV) + '_' + RTRIM(v.txtEmisora) + '_' + RTRIM(v.txtSerie),
+			v.txtCODIGO_INTERNACIONAL = RTRIM(v.txtTV) + '_' + RTRIM(v.txtEmisora) + '_' + RTRIM(v.txtSerie)
+	FROM @tblVectorPricesBenchMarks AS v
+
+	-- 4.5.4 Elimino los valores a la fecha para encontrar los valores anteriores
+	DELETE tac 
+	FROM 
+		@tblIdsAddOLD_VALUE AS tac
+		INNER JOIN @tmp_tblKEYsNW_TV AS tkc
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'TV'
+
+	DELETE tac 
+	FROM 
+		@tblIdsAddOLD_VALUE AS tac
+		INNER JOIN @tmp_tblKEYsNW_NEC AS tkc
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'NEC'
+
+	DELETE tac 
+	FROM 
+		@tblIdsAddOLD_VALUE AS tac
+		INNER JOIN @tmp_tblKEYsNW_SER AS tkc
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'SER'
+
+	-- 	4.5.5 Obtengo penultima fecha de ajuste los penultimos Key
+	INSERT @tmp_tblKEYsFECHA_AJUSTE
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem IN ('TV','NEC','SER')
+	GROUP BY txtId1
+
+	-- 4.5.6 Para FECHA_AJUSTE
+	UPDATE v
+	SET v.dteFECHA_AJUSTE = f.dteDate,
+		v.txtDESCRIPCION = 'Cambio de identificadores'
+	FROM @tmp_tblKEYsFECHA_AJUSTE AS f
+			INNER JOIN @tblVectorPricesBenchMarks AS v
+				ON f.txtId1 = v.txtId1
+
+	-- 4.5.7 Obtengo los penultimos Key
+	INSERT @tmp_tblKEYsOLD_TV(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'TV'
+	GROUP BY txtId1
+
+	INSERT @tmp_tblKEYsOLD_NEC(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'NEC'
+	GROUP BY txtId1
+
+	INSERT @tmp_tblKEYsOLD_SER(txtId1,dteDate)
+	SELECT txtId1,MAX(dteDate)
+	FROM @tblIdsAddOLD_VALUE
+	WHERE txtItem = 'SER'
+	GROUP BY txtId1
+
+	-- 4.5.8 Obtengo los valores penúltimo cambio
+	UPDATE v
+	SET v.txtOLDTv = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsOLD_TV AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'TV'
+	UPDATE v
+	SET v.txtOLDEmisora = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsOLD_NEC AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'NEC'
+
+	UPDATE v
+	SET v.txtOLDSerie = RTRIM(tac.txtValue)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+		INNER JOIN @tmp_tblKEYsOLD_SER AS tkc
+				ON tkc.txtId1 = v.txtId1
+		INNER JOIN @tblIdsAddOLD_VALUE AS tac
+			ON tac.txtId1 = tkc.txtId1 
+				AND tac.dteDate = tkc.dteDate
+				AND tac.txtItem = 'SER'
+
+	-- 3.5.9 Determino ultimo código asignado
+	UPDATE v
+	SET v.txtOLD_VALUE = (CASE WHEN txtOLDTv IS NULL THEN RTRIM(txtTV) ELSE RTRIM(txtOLDTV) END) + '_' + 
+						(CASE WHEN txtOLDEmisora IS NULL THEN RTRIM(txtEmisora) ELSE RTRIM(txtOLDEmisora) END) + '_' + 
+						(CASE WHEN txtOLDSerie IS NULL THEN RTRIM(txtSerie) ELSE RTRIM(txtOLDSerie) END)
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+
+	-- 3.5.9 Elimino los codigos repetidos 
+	UPDATE v
+	SET v.txtOLD_VALUE = '',
+		v.dteFECHA_AJUSTE =	NULL,
+		v.txtDESCRIPCION = ''
+	FROM 
+		@tblVectorPricesBenchMarks AS v
+	WHERE 
+		v.txtNEW_VALUE = v.txtOLD_VALUE        
+
+	-- Detalle de Información Vector de Precios
+	INSERT @tblResults (intConsecutivo,txtTV,txtEmisora,txtSerie,txtData)
+	SELECT 
+			1,
+			txtTv,
+			txtEmisora,
+			txtSerie, 
+			RTRIM(txtCODIGO_PRODUCTO) + '|' +
+			RTRIM(txtTIPO_ACTIVO) + '|' +
+			CONVERT(CHAR(8),dteFECHA,112) + '|' +
+			CASE WHEN dblPRECIO IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblPRECIO,6),19,6)) END + '|' +
+			CASE WHEN txtNOMBRE IS NULL OR txtNOMBRE = '-' OR txtNOMBRE = 'NA' THEN '' ELSE RTRIM(txtNOMBRE) END + '|' +
+			RTRIM(txtCODIGO_INTERNACIONAL) + '|' +
+			RTRIM(txtDIVISA) + '|' +
+			CASE WHEN dblOPEN IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblOPEN,6),19,6)) END + '|' +
+			CASE WHEN dblHIGH IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblHIGH,6),19,6)) END + '|' +
+			CASE WHEN dblLOW IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblLOW,6),19,6)) END + '|' +
+			CASE WHEN txtVOLUMEN IS NULL OR txtVOLUMEN = '-' OR txtVOLUMEN = 'NA' THEN '' ELSE RTRIM(txtVOLUMEN) END + '|' +
+			CASE WHEN txtEMISOR_PRECIO IS NULL OR txtEMISOR_PRECIO = '-' OR txtEMISOR_PRECIO = 'NA' THEN '' ELSE RTRIM(txtEMISOR_PRECIO) END + '|' +
+			CASE WHEN txtPAIS IS NULL OR txtPAIS = '-' OR txtPAIS = 'NA' THEN '' ELSE RTRIM(txtPAIS) END + '|' +
+			CASE WHEN txtSECTOR IS NULL OR txtSECTOR = '-' OR txtSECTOR = 'NA' THEN '' ELSE RTRIM(txtSECTOR) END + '|' +
+			CASE WHEN txtCODIGO_INTERNACIONAL_BENCHMARK IS NULL OR txtCODIGO_INTERNACIONAL_BENCHMARK = '-' OR txtCODIGO_INTERNACIONAL_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtCODIGO_INTERNACIONAL_BENCHMARK) END + '|' +
+			CASE WHEN txtDIVISA_BENCHMARK IS NULL OR txtDIVISA_BENCHMARK = '-' OR txtDIVISA_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtDIVISA_BENCHMARK) END + '|' +
+			CASE WHEN txtCODIGO_PRODUCTO_BENCHMARK IS NULL OR txtCODIGO_PRODUCTO_BENCHMARK = '-' OR txtCODIGO_PRODUCTO_BENCHMARK = 'NA' THEN '' ELSE RTRIM(txtCODIGO_PRODUCTO_BENCHMARK) END + '|' +
+			RTRIM(txtCATEGORIA) + '|' +
+			CASE WHEN dteFECHA_AJUSTE IS NULL THEN '' ELSE CONVERT(CHAR(8),dteFECHA_AJUSTE,112) END + '|' +
+			CASE WHEN txtDESCRIPCION IS NULL OR txtDESCRIPCION = '-' OR txtDESCRIPCION = 'NA' THEN '' ELSE RTRIM(txtDESCRIPCION) END + '|' +
+			CASE WHEN txtFACTOR_AJUSTE IS NULL OR txtFACTOR_AJUSTE = '-' OR txtFACTOR_AJUSTE = 'NA' THEN '' ELSE RTRIM(txtFACTOR_AJUSTE) END + '|' +
+			RTRIM(txtESTATUS_INSTRUMENTO) + '|' +
+			CASE WHEN txtNEW_VALUE IS NULL  THEN '' ELSE RTRIM(txtNEW_VALUE) END + '|' +
+			CASE WHEN txtOLD_VALUE IS NULL  THEN '' ELSE RTRIM(txtOLD_VALUE) END
+			AS [txtData]
+	FROM @tblVectorPricesBenchMarks
+
+	-- Detalle de Información BenchMarks
+	INSERT @tblResults (intConsecutivo,txtTV,txtEmisora,txtSerie,txtData)
+	SELECT 
+			2,
+			p.txtType, -- txtTV
+			p.txtType, -- txtEmisora
+			p.txtType, -- txtSerie
+			'PiPB'+ SUBSTRING('000000000',1,9-LEN(LTRIM(STR(c.intCustomerId)))) + LTRIM(STR(c.intCustomerId))  + '|' +
+			'A'  + '|' +
+			CONVERT(CHAR(8),p.dteDate,112) + '|' +
+			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +
+			CASE WHEN c.txtIndexNameMD IS NULL OR c.txtIndexNameMD = '-' OR c.txtIndexNameMD = 'NA' THEN '' ELSE RTRIM(c.txtIndexNameMD) END + '|' +
+			''  + '|' + -- Codigo Internacional
+			''  + '|' + -- Divisa
+			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +   -- OPEN
+			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +	 -- HIGH
+			CASE WHEN p.dblIndex IS NULL THEN '' ELSE LTRIM(STR(ROUND(p.dblIndex,6),19,6)) END + '|' +	 -- LOW
+			''  + '|' + -- VOLUMEN
+			''  + '|' + -- EMISOR_PRECIO
+			''  + '|' + -- PAIS
+			''  + '|' + -- SECTOR
+			''  + '|' + -- CODIGO_INTERNACIONAL_BENCHMARK
+			'MXN'  + '|' + -- DIVISA_BENCHMARK
+			'PiPB'+ SUBSTRING('000000000',1,9-LEN(LTRIM(STR(c.intCustomerId)))) + LTRIM(STR(c.intCustomerId))  + '|' +  -- CODIGO_PRODUCTO_BENCHMARK
+			'Benchmark' + '|' +
+			''  + '|' + -- FECHA_AJUSTE
+			''  + '|' + -- DESCRIPCION
+			''  + '|' + -- FACTOR_AJUSTE
+			'1'  + '|' + -- ESTATUS_INSTRUMENTO
+			''  + '|' + -- NEW_VALUE
+			''		   -- OLD_VALUE
+			AS [txtData]
+	FROM dbo.tblBenchCatalog AS c (NOLOCK)
+		INNER JOIN dbo.tblPiPIndexes AS p (NOLOCK)
+			ON c.txtType = p.txtType AND c.intTaxes = p.intTaxes
+	WHERE p.dteDate = @txtDate
+		AND p.txtType IN (
+			'CEDEVIS>>1A','SHF','SHF-MPS','SHF-UDI','BANK>>CP','BANK>>LP','BANK','TFB','BORHIS','STD_COR_FLO_-=5',
+			'STD_COR_FLO_+5','STD_COR_FIX_-=3','STD_COR_FIX_3-7','STD_COR_FIX_+7','D2S','CORP_M>>CP','CORP_M>>LP',
+			'CORP_M','PIPGUB','LS','LD','LATMEXBonds5Y','LATMEXBonds10Y','M_CI','M_','LATMEXBonds>10Y','IS','IP',
+			'IT','XA','2UCI','2U','BI>>182','BI>>028','BI>>364','BI>>007','BI>>091','BI>>090','B_','LATMEXCetes',
+			'PIPF10A','PIPF13M','PIPF1M','PIPF12M','M_>>20AP','M_>>30AP','PIPF3M','PIPF3A','PIPF5A','PIPF6M','PIPF',
+			'PIPFLCP','PIPFLLP','PIPFL2','PIPFL','FONDGUBB','TFGOBAN','FONDGUBN','PI','PIPR10A','PIPR1A','PIPR20A',
+			'PIPR30A','PIPR5A','PIPR20A_CI','PIPREAL_CI','PIPR30A_CI','PIPREAL','S_CI','S_','S_DUR>>5-6','LATMEXUDIS',
+			'D1','D1-USD>>10AP','D1-USD>>20AP','D1-USD>>LP','D1-USD>>5AP','D1-USD>>1AP','D1-USD','D1-EUR','LATMEXUMS',
+			'PIPIPAB')
+		AND p.intTaxes = 0
+
+	-- Valida la información 
+	IF NOT EXISTS(SELECT TOP 1 intConsecutivo FROM @tblResults)
+		RAISERROR ('ERROR: Falta Informacion', 16, 1)
+
+	ELSE
+			-- Reporto informacion
+			SELECT RTRIM(txtData)
+			FROM @tblResults
+			ORDER BY intConsecutivo,txtTV,txtEmisora,txtSerie
+
+	SET ANSI_WARNINGS ON
+	SET NOCOUNT OFF 
+
+END
+--   Autor:      Lic. René López Salinas
+--   Creacion:   12:22 p.m. 2011-02-03        
+--   Descripcion:  Procedimiento que genera producto FC_YYYYMMDD.txt    
+CREATE PROCEDURE dbo.usp_productos_TechRules;5    
+  @txtDate AS DATETIME    
+AS       
+BEGIN      
+    
+	SET NOCOUNT ON  
+
+	-- Creo tabla temporal de resultados    
+	DECLARE @tblResult TABLE (    
+	  [intSection][INTEGER],    
+	  [txtData][VARCHAR](8000)
+	 )    
+   
+	-- Tabla para recopilar info de subyacentes
+	DECLARE @tmp_tblUnderlyingAsset TABLE (
+			txtUnderlyingAsset CHAR(20),
+			txtTv CHAR(4),
+			txtEmisora CHAR(7),
+			txtSerie CHAR(6),
+			txtDivisa CHAR(6),
+			txtSuperIssuerName CHAR(50),
+			intCustomerId INT,
+			txtSuperIssuer VARCHAR(15)
+			PRIMARY KEY (txtUnderlyingAsset)
+	) 
+
+	 -- Creo tabla temporal para extraer el universo de datos  
+	DECLARE @tmp_tblVector TABLE (
+		  txtCODIGO_PRODUCTO CHAR(13),
+		  dblLOT_SIZE FLOAT,
+		  txtLOT_SIZE_UNIT CHAR(1),
+		  txtCODIGO_INTERNACIONAL_SUBYACENTE CHAR(19), 
+		  txtDIVISA_SUBYACENTE CHAR(6),
+		  txtEMISOR_PRECIO_SUBYACENTE CHAR(50),
+		  txtCODIGO_PRODUCTO_SUBYACENTE  CHAR(13),
+		  txtEXPIRE_DATE CHAR(8),
+		  PRIMARY KEY(txtCODIGO_PRODUCTO)	
+	)
+
+	-- Carga info de subyacentes
+	INSERT @tmp_tblUnderlyingAsset (txtUnderlyingAsset,txtTv,txtEmisora,txtSerie,txtDivisa,intCustomerId,txtSuperIssuer)
+	SELECT DISTINCT d.txtUnderlyingAsset,i.txtTv,i.txtEmisora,i.txtSerie,'',i.intCustomerId,isc.txtSuperIssuer
+	FROM dbo.tmp_tblUnifiedPricesReport AS p (NOLOCK)
+		INNER JOIN dbo.tblDerivatives AS d (NOLOCK)
+			ON d.txtId1 = p.txtId1
+		INNER JOIN dbo.tblIds AS i (NOLOCK)
+			ON i.txtId1 = d.txtUnderlyingAsset
+		INNER JOIN dbo.tblIssuersCatalog AS isc (NOLOCK)
+			ON isc.txtIssuer = i.txtEmisora
+	WHERE p.dtedate = @txtDate
+			AND p.txtLiquidation = 'MP'
+			AND p.txtTv IN ('FA','FB','FC','FD','FI','FM','FS','FU') 
+
+	-- Si el subyacente es un instrumento en del  vector de precios se usara la leyenda MXN
+	-- excepto para TV: *C y *CSP. Si el instrumento es TV: *C o *CSP se usara la serie del instrumento. 
+	-- Si el subyacente no es un instrumento en el vector de precios el espacio deberá estar en blanco
+	UPDATE u
+	SET u.txtDivisa = (CASE WHEN p.txtTV IN ('*C','*CSP')
+							THEN p.txtSerie
+							ELSE 'MXN'
+						END)
+	FROM @tmp_tblUnderlyingAsset AS u
+			INNER JOIN dbo.tmp_tblUnifiedPricesReport AS p (NOLOCK)
+					ON p.txtId1 = u.txtUnderlyingAsset
+
+	-- EMISOR_PRECIO_SUBYACENTE
+	UPDATE v
+	SET v.txtSuperIssuerName = SUBSTRING(RTRIM(p.txtSuperIssuerName),1,50)
+	FROM dbo.tblSuperIssuersCatalog AS p (NOLOCK)
+			INNER JOIN @tmp_tblUnderlyingAsset AS v
+				ON p.txtSuperIssuer = v.txtSuperIssuer
+
+	-- Carga info de Derivados
+	INSERT @tmp_tblVector (txtCODIGO_PRODUCTO,dblLOT_SIZE,txtLOT_SIZE_UNIT,txtCODIGO_INTERNACIONAL_SUBYACENTE,
+						txtDIVISA_SUBYACENTE,txtEMISOR_PRECIO_SUBYACENTE,txtCODIGO_PRODUCTO_SUBYACENTE,txtEXPIRE_DATE)
+	SELECT
+		'PiP'+SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(i.intCustomerId)))) + LTRIM(STR(i.intCustomerId)),
+		d.dblLotSize,
+		'',
+		CASE WHEN d1.txtUnderlyingAsset IS NULL 
+				THEN ''
+				ELSE RTRIM(d1.txtTV) + '_' + RTRIM(d1.txtEmisora) + '_' + RTRIM(d1.txtSerie)
+		END,
+		CASE WHEN d1.txtDivisa IS NULL
+				THEN ''
+				ELSE d1.txtDivisa
+		END,
+		CASE WHEN d1.txtSuperIssuerName IS NULL
+				THEN ''
+				ELSE d1.txtSuperIssuerName
+		END,
+		CASE WHEN d1.intCustomerId IS NULL
+				THEN ''
+				ELSE 'PiP'+SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(d1.intCustomerId)))) + LTRIM(STR(d1.intCustomerId))
+		END,
+		CONVERT(CHAR(8),dteMaturity,112)
+	FROM dbo.tmp_tblUnifiedPricesReport AS p (NOLOCK)
+		INNER JOIN dbo.tblids AS i (NOLOCK)
+			ON i.txtId1 = p.txtId1
+		INNER JOIN dbo.tblDerivatives AS d (NOLOCK)
+			ON d.txtId1 = p.txtId1
+		LEFT OUTER JOIN @tmp_tblUnderlyingAsset AS d1
+			ON d1.txtUnderlyingAsset = d.txtUnderlyingAsset
+	WHERE p.dtedate = @txtDate
+			AND p.txtLiquidation = 'MP'
+			AND i.txtTv IN ('FA','FB','FC','FD','FI','FM','FS','FU') 
+
+	-- Formateo salida en tabla de resultados
+	INSERT @tblResult (intSection,txtData) 
+	SELECT 1,
+		  txtCODIGO_PRODUCTO +'|'+
+		  LTRIM(STR(dblLOT_SIZE)) +'|'+
+		  RTRIM(txtLOT_SIZE_UNIT) +'|'+
+		  RTRIM(txtCODIGO_INTERNACIONAL_SUBYACENTE) +'|'+
+		  RTRIM(txtDIVISA_SUBYACENTE) +'|'+
+		  RTRIM(txtEMISOR_PRECIO_SUBYACENTE) +'|'+
+		  RTRIM(txtCODIGO_PRODUCTO_SUBYACENTE)  +'|'+
+		  txtEXPIRE_DATE
+	 FROM @tmp_tblVector
+	 ORDER BY txtCODIGO_PRODUCTO
+
+ -- Valida la información   
+	IF ((SELECT count(*) FROM @tblResult) <= 1)    
+		 BEGIN  
+			 RAISERROR ('ERROR: Falta Informacion', 16, 1)  
+		 END    
+	ELSE  
+		 -- Reporto informacion     
+		 SELECT LTRIM(txtData)     
+		 FROM @tblResult    
+		 ORDER BY intSection    
+	    
+	SET NOCOUNT OFF     
+    
+END
+--   Autor:      Mike Ramirez
+--   Fecha Modificacion:   18:21 p.m.  20120131       
+--   Descripcion:  Validacion PAV para el campo txtRATIO   
+CREATE PROCEDURE dbo.usp_productos_TechRules;6    
+  @txtDate AS DATETIME    
+AS       
+BEGIN      
+    
+	SET NOCOUNT ON
+
+	-- Creo tabla temporal de resultados    
+	DECLARE @tblResult TABLE (    
+	  [intSection][INTEGER],    
+	  [txtData][VARCHAR](8000)
+	 )    
+   
+	-- Tabla para recopilar info de subyacentes
+	DECLARE @tmp_tblUnderlyingAsset TABLE (
+			txtUnderlyingAsset CHAR(20),
+			txtTv CHAR(4),
+			txtEmisora CHAR(7),
+			txtSerie CHAR(6),
+			txtDivisa CHAR(6),
+			txtSuperIssuerName CHAR(50),
+			intCustomerId INT,
+			dblPRS FLOAT,
+			txtSuperIssuer VARCHAR(15)
+			PRIMARY KEY (txtUnderlyingAsset)
+	) 
+
+	 -- Creo tabla temporal para extraer el universo de datos  
+	DECLARE @tmp_tblVector TABLE (
+			txtCODIGO_PRODUCTO CHAR(13),
+			txtCODIGO_INTERNACIONAL_SUBYACENTE CHAR(19), 
+			txtDIVISA_SUBYACENTE CHAR(6),
+			txtEMISOR_PRECIO_SUBYACENTE CHAR(50),
+			txtCODIGO_PRODUCTO_SUBYACENTE  CHAR(13),
+			txtTYPE CHAR(4),			-- NW
+			txtADMISION_DATE CHAR(8),   -- NW
+			txtEXPIRE_DATE CHAR(8),
+			txtPARITY CHAR(19),			-- NW
+			txtRATIO CHAR(19),			-- NW
+			txtSTYLE CHAR(1),			-- NW
+			txtSTRIKE_PRICE CHAR(19)		-- NW
+		  PRIMARY KEY(txtCODIGO_PRODUCTO)	
+	)
+
+	-- Carga info de subyacentes
+	INSERT @tmp_tblUnderlyingAsset (txtUnderlyingAsset,txtTv,txtEmisora,txtSerie,txtDivisa,intCustomerId,dblPRS,txtSuperIssuer)
+	SELECT DISTINCT 
+			d.txtUnderlyingAsset,
+			i.txtTv,
+			i.txtEmisora,
+			i.txtSerie,
+			'',
+			i.intCustomerId,
+			CASE WHEN pS.dblPRS = 0 THEN pS.dblPAV ELSE pS.dblPRS END,
+			isc.txtSuperIssuer
+	FROM dbo.tmp_tblUnifiedPricesReport AS p (NOLOCK)
+		INNER JOIN dbo.tblDerivatives AS d (NOLOCK)
+			ON d.txtId1 = p.txtId1
+		INNER JOIN dbo.tblIds AS i (NOLOCK)
+			ON i.txtId1 = d.txtUnderlyingAsset
+		INNER JOIN dbo.tblIssuersCatalog AS isc (NOLOCK)
+			ON isc.txtIssuer = i.txtEmisora
+		LEFT OUTER JOIN dbo.tmp_tblUnifiedPricesReport AS pS (NOLOCK)
+			ON pS.txtId1 = d.txtUnderlyingAsset
+	WHERE p.dtedate = @txtDate
+			AND p.txtLiquidation = 'MP'
+			AND p.txtTv IN ('OA','OC','OD','OI','WA','WASP','WC','WE','WESP','WI') 
+			AND pS.txtLiquidation = 'MP'
+
+	-- Si el subyacente es un instrumento en del  vector de precios se usara la leyenda MXN
+	-- excepto para TV: *C y *CSP. Si el instrumento es TV: *C o *CSP se usara la serie del instrumento. 
+	-- Si el subyacente no es un instrumento en el vector de precios el espacio deberá estar en blanco
+	UPDATE u
+	SET u.txtDivisa = (CASE WHEN p.txtTV IN ('*C','*CSP')
+							THEN p.txtSerie
+							ELSE 'MXN'
+						END)
+	FROM @tmp_tblUnderlyingAsset AS u
+			INNER JOIN dbo.tmp_tblUnifiedPricesReport AS p (NOLOCK)
+					ON p.txtId1 = u.txtUnderlyingAsset
+
+	-- EMISOR_PRECIO_SUBYACENTE
+	UPDATE v
+	SET v.txtSuperIssuerName = SUBSTRING(RTRIM(p.txtSuperIssuerName),1,50)
+	FROM dbo.tblSuperIssuersCatalog AS p (NOLOCK)
+			INNER JOIN @tmp_tblUnderlyingAsset AS v
+				ON p.txtSuperIssuer = v.txtSuperIssuer
+
+	-- Carga info de Derivados
+	INSERT @tmp_tblVector (txtCODIGO_PRODUCTO,txtCODIGO_INTERNACIONAL_SUBYACENTE,txtDIVISA_SUBYACENTE,
+				txtEMISOR_PRECIO_SUBYACENTE,txtCODIGO_PRODUCTO_SUBYACENTE,txtTYPE,txtADMISION_DATE,txtEXPIRE_DATE,
+				txtPARITY,txtRATIO,txtSTYLE,txtSTRIKE_PRICE)
+	SELECT
+		'PiP'+SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(i.intCustomerId)))) + LTRIM(STR(i.intCustomerId)),
+		CASE WHEN d1.txtUnderlyingAsset IS NULL 
+				THEN ''
+				ELSE RTRIM(d1.txtTV) + '_' + RTRIM(d1.txtEmisora) + '_' + RTRIM(d1.txtSerie)
+		END,
+		CASE WHEN d1.txtDivisa IS NULL
+				THEN ''
+				ELSE d1.txtDivisa
+		END,
+		CASE WHEN d1.txtSuperIssuerName IS NULL
+				THEN ''
+				ELSE d1.txtSuperIssuerName
+		END,
+		CASE WHEN d1.intCustomerId IS NULL
+				THEN ''
+				ELSE 'PiP'+SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(d1.intCustomerId)))) + LTRIM(STR(d1.intCustomerId))
+		END,
+		-- identificador para saber si es Call o Put. 
+		-- Para los TV: OA, OC, OD, OI cuya serie es: C, F, I, L se usara la letra "C" de Call. 
+		-- Para los TV: OA, OC, OD, OI cuya serie es: O, R, U, X se usara la letra P de PUT. 
+		-- Si el instrumento es un TV diferente dejar en blanco.
+		CASE WHEN p.txtTv IN ('OA', 'OC', 'OD', 'OI')  AND p.txtSerie IN ('C','F','I','L') THEN 'C'
+			 WHEN p.txtTv IN ('OA', 'OC', 'OD', 'OI')  AND p.txtSerie IN ('O','R','U','X') THEN 'P'
+			 ELSE 'P'
+		END AS [TYPE],
+		CONVERT(CHAR(8),dteIssued,112),
+		CONVERT(CHAR(8),dteMaturity,112),
+		CASE WHEN d1.txtUnderlyingAsset IS NULL
+				THEN ''
+				ELSE LTRIM(STR(ROUND(p.dblPAV/d1.dblPRS,6),19,6))
+		END, -- PARITY
+		CASE WHEN d1.txtUnderlyingAsset IS NULL OR p.dblPav = 0
+				THEN ''
+				ELSE 
+					LTRIM(STR(ROUND(d1.dblPRS/p.dblPAV,6),19,6))
+		END, -- RATIO
+		'E' AS [STYLE],
+		LTRIM(STR(ROUND(d.dblStrikePrice,6),19,6))
+	FROM dbo.tmp_tblUnifiedPricesReport AS p (NOLOCK)
+		INNER JOIN dbo.tblids AS i (NOLOCK)
+			ON i.txtId1 = p.txtId1
+		INNER JOIN dbo.tblDerivatives AS d (NOLOCK)
+			ON d.txtId1 = p.txtId1
+		LEFT OUTER JOIN @tmp_tblUnderlyingAsset AS d1
+			ON d1.txtUnderlyingAsset = d.txtUnderlyingAsset
+	WHERE p.dtedate = @txtDate
+			AND p.txtLiquidation = 'MP'
+			AND i.txtTv IN ('OA','OC','OD','OI','WA','WASP','WC','WE','WESP','WI')
+
+	-- Formateo salida en tabla de resultados
+	INSERT @tblResult (intSection,txtData) 
+	SELECT 1,
+		  txtCODIGO_PRODUCTO +'|'+
+		  RTRIM(txtCODIGO_INTERNACIONAL_SUBYACENTE) +'|'+
+		  RTRIM(txtDIVISA_SUBYACENTE) +'|'+
+		  RTRIM(txtEMISOR_PRECIO_SUBYACENTE) +'|'+
+		  RTRIM(txtCODIGO_PRODUCTO_SUBYACENTE)  +'|'+
+		  RTRIM(txtTYPE)   +'|'+
+		  RTRIM(txtADMISION_DATE)  +'|'+
+		  RTRIM(txtEXPIRE_DATE)  +'|'+
+		  RTRIM(txtPARITY) +'|'+
+		  RTRIM(txtRATIO)  +'|'+
+		  RTRIM(txtSTYLE)  +'|'+
+		  RTRIM(txtSTRIKE_PRICE)
+	 FROM @tmp_tblVector
+	 ORDER BY txtCODIGO_PRODUCTO
+
+ -- Valida la información   
+	IF ((SELECT count(*) FROM @tblResult) <= 1)    
+		 BEGIN  
+			 RAISERROR ('ERROR: Falta Informacion', 16, 1)  
+		 END    
+	ELSE  
+		 -- Reporto informacion     
+		 SELECT LTRIM(txtData)     
+		 FROM @tblResult    
+		 ORDER BY intSection    
+	    
+	SET NOCOUNT OFF     
+    
+END
+
