@@ -1,0 +1,30 @@
+
+
+
+
+SELECT * FROM  dbo.tblActiveX AS TAX
+WHERE txtValor LIKE '%AFBMX_Vector_Mandatos_%'
+
+AFBMX_Vector_Mandatos_MSCI_EUR[DATE|YYYYMMDD].XLS
+
+
+
+SELECT * FROM  dbo.tblActiveX AS TAX
+WHERE txtProceso IN 
+(
+'BANAMEX_MANDATOS_EUR_PIP',
+'BANAMEX_MANDATOS_EUR_XLS',
+'PIP_VEC_MANDATOS_NW_PIP',
+'PIP_VEC_MANDATOS_NW_XLS'
+)
+AND txtPropiedad LIKE '%sp%'
+ORDER BY 3 as
+ 
+ 
+ SELECT * FROM  dbo.tblActiveX AS TAX
+WHERE txtProceso IN 
+(
+'BANAMEX_MANDATOS_EUR_PIP',
+'PIP_VEC_MANDATOS_NW_PIP'
+)
+
