@@ -7,35 +7,35 @@ Descripcion  :   SP para crear producto BNP_D
 */
 
 /*obtenemos DMF para MD y 24H*/
-	WITH TBL1 (txtId1,dteDate,txtTv,txtEmisora,txtDMF_MD)
-		AS  
-			(
-			SELECT
-				txtId1,
-				dteDate,
-				txtTv,
-				txtEmisora,
-				CASE WHEN  txtDMF NOT IN ('-','NA') THEN  STR(txtDMF,20,12) ELSE '-' END  AS txtDMF_MD
-			 FROM  dbo.tmp_tblUnifiedPricesReport
-			WHERE txtLiquidation IN ('MD','MP') 
-			),
-		
-		  TBL2 (txtId1,dteDate,txtTv,txtEmisora,txtDMF_24H)
-		AS  
-			(
-			SELECT
-				txtId1,
-				dteDate,
-				txtTv,
-				txtEmisora,
-				CASE WHEN  txtDMF NOT IN ('-','NA') THEN  STR(txtDMF,20,12) ELSE '-' END  AS txtDMF_24H
-			 FROM  dbo.tmp_tblUnifiedPricesReport
-			WHERE txtLiquidation  IN ('24H','MP')  
-			)
-			SELECT A1.*,A2.txtDMF_24H FROM  TBL1 AS A1
-				INNER JOIN TBL2 AS A2
-			ON A1.txtId1 = A2.txtId1
-			--ORDER  BY  TBL1.txtTv
+		WITH TBL1 (txtId1,dteDate,txtTv,txtEmisora,txtDMF_MD)
+			AS  
+				(
+				SELECT
+					txtId1,
+					dteDate,
+					txtTv,
+					txtEmisora,
+					CASE WHEN  txtDMF NOT IN ('-','NA') THEN  STR(txtDMF,20,12) ELSE '-' END  AS txtDMF_MD
+				 FROM  dbo.tmp_tblUnifiedPricesReport
+				WHERE txtLiquidation IN ('MD','MP') 
+				),
+			
+			  TBL2 (txtId1,dteDate,txtTv,txtEmisora,txtDMF_24H)
+			AS  
+				(
+				SELECT
+					txtId1,
+					dteDate,
+					txtTv,
+					txtEmisora,
+					CASE WHEN  txtDMF NOT IN ('-','NA') THEN  STR(txtDMF,20,12) ELSE '-' END  AS txtDMF_24H
+				 FROM  dbo.tmp_tblUnifiedPricesReport
+				WHERE txtLiquidation  IN ('24H','MP')  
+				)
+				SELECT A1.dtedate,A1.txttv,A1.txtEmisora,A1.txtDMF_MD,A2.txtDMF_24H FROM  TBL1 AS A1
+					INNER JOIN TBL2 AS A2
+				ON A1.txtId1 = A2.txtId1
+				ORDER  BY  A1.txtTv
 
 
 
