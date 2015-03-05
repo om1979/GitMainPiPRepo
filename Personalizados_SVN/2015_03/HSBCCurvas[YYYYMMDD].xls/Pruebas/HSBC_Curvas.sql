@@ -166,3 +166,69 @@ BEGIN
 END
 
 GO
+
+
+--SELECT * FROM  dbo.tblActiveX
+--WHERE txtProceso = 'HSBC_CURVES'
+
+
+
+--UPDATE  dbo.tblActiveX
+--SET txtValor = '\\Vic-testsql\produccion\MxVprecios\PRODUCTOS\DEFINITIVO\HSBC\ACTUAL\'
+--WHERE txtProceso = 'HSBC_CURVES'
+--AND txtPropiedad = 'FilePath'
+
+--UPDATE  dbo.tblActiveX
+--SET txtValor =  'Template_HSBC_CurvasTest.xls'
+--WHERE txtProceso = 'HSBC_CURVES'
+--AND txtPropiedad = 'TemplateFile'
+
+
+--\\Vic-testsql\produccion\MxVprecios\PRODUCTOS\DEFINITIVO\HSBC\ACTUAL
+--\\VIC-TESTSQL\MxVPrecios\Productos\Definitivo\HSBC\Actual\
+----INSERT INTO dbo.tblActiveX
+----SELECT * FROM  [VIA-MXSQL].MxFixIncome.dbo.tblActiveX
+----WHERE txtProceso = 'HSBC_CURVES'
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+--SELECT * FROM  dbo.tblProcesos
+--WHERE txtProducto = 'HSBC_CURVES'
+
+
+
+--SELECT * FROM  dbo.tblProcesos
+--WHERE txtProducto = 'HSBC_CURVES'
+
+--DEF_CUR
+
+
+
+--UPDATE MxProcesses..tblProductGeneratorMap
+--SET txtPack = 'operativo_2'
+--WHERE txtProduct = 'HSBC_CURVES'
+
+
+--SELECT * FROM  MxProcesses..tblProductGeneratorMap
+--WHERE txtProduct = 'HSBC_CURVES'
+
+
+--SELECT * FROM  MxProcesses..tblProductGeneratorMap
+--WHERE txtPack = 'operativo_2'
+
+
+
+--UPDATE MxProcesses..tblProductGeneratorMap
+--SET fload = 0
+--WHERE txtPack = 'operativo_2'
+

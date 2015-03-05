@@ -1,14 +1,10 @@
 
-SELECT * FROM  sys.procedures
-WHERE name LIKE 'sp_productos_bnp'
-
-sp_productos_bnp;1 '20150206'
 /*
-Modifica:  Omar Adrian Aceves Guttierez
+Autor:  Omar Adrian Aceves Guttierez
 Fecha de Modificación:  2015-03-03 11:45:54
 Descripcion  :   SP para crear producto BNP_D_XLS
 */
-	ALTER    PROCEDURE DBO.sp_productos_bnp 
+	ALTER      PROCEDURE DBO.sp_productos_bnp 
 	 @dtedate datetime 	
 	AS 
 	BEGIN
@@ -202,4 +198,82 @@ Descripcion  :   SP para crear producto BNP_D_XLS
 --		AND txtPropiedad = 'TemplateFile'
 		
 
+	/*pasamos la configuracion de pruebas a produccion*/
 	
+	
+	--sp_linkedservers
+	
+	
+	--INSERT INTO [VIA-MXSQL].MxFixIncome.dbo.tblProcesos
+	--	SELECT * FROM dbo.tblProcesos
+	--WHERE txtProducto = 'BNP_D_XLS'
+
+--INSERT  [VIA-MXSQL].MxFixIncome.dbo.tblActiveX
+--SELECT * FROM  tblActiveX
+--WHERE txtProceso = 'BNP_D_XLS'
+
+--SELECT * FROM  [VIA-MXSQL].MxFixIncome.dbo.tblActiveX
+--WHERE txtProceso = 'BNP_D_XLS'
+
+
+--sp_linkedservers
+
+--SELECT * FROM   [VIA-MXSQL].MxProcesses.dbo.tblProcessCatalog
+
+
+
+--SELECT * FROM   [VIA-MXSQL].MxFixIncome.dbo.tblActiveX
+
+--INSERT  [VIA-MXSQL].MxProcesses.dbo.tblProcessCatalog
+--SELECT * FROM MxProcesses.dbo.tblProcessCatalog
+--WHERE txtProcess = 'BNP_D_XLS'
+
+--INSERT  [VIA-MXSQL].MxProcesses.dbo.tblProcessDurations
+--SELECT * FROM  MxProcesses..tblProcessDurations
+--WHERE txtProcess = 'BNP_D_XLS'
+
+--INSERT  [VIA-MXSQL].MxProcesses.dbo.tblProcessDurations
+
+
+
+--INSERT INTO [VIA-MXSQL].MxProcesses.dbo.tblProductGeneratorMap
+--SELECT 
+--txtProduct
+--,txtFamily
+--,'DEFINITIVO_2'
+--,intPriority
+--,'BNP'
+--,fload
+-- FROM  MxProcesses..tblProductGeneratorMap
+--WHERE txtProduct = 'BNP_D_XLS'
+
+--SELECT * FROM     [VIA-MXSQL].MxProcesses.dbo.tblProductGeneratorMap
+--WHERE txtProduct = 'BNP_D_XLS'
+
+--SELECT * FROM  
+--[VIA-MXSQL].MxProcesses.dbo.tblProcessDurations
+--WHERE txtprocess = 'BNP_D_XLS'
+
+--SELECT * FROM  
+--[VIA-MXSQL].MxProcesses.dbo.tblProcessDurations
+--WHERE txtprocess = 'BNP_D_XLS'
+
+
+--SELECT * FROM  dbo.tblOwnersCatalog
+--WHERE txtDescription LIKE '%bnp%'
+
+
+--SELECT * FROM  [VIA-MXSQL].MxFixIncome.dbo.tblActiveX
+--WHERE txtProceso = 'BNP_D_XLS'
+
+
+
+--WHERE txtDescription LIKE '%bnp%'
+
+--INSERT 
+--[VIA-MXSQL].MxProcesses.dbo.tblOwnersCatalog
+--SELECT 'BNP','BNP Paribas'
+
+--SELECT * FROM  MxProcesses..tblProductGeneratorMap
+--WHERE txtProduct LIKE '%vector%'
+
