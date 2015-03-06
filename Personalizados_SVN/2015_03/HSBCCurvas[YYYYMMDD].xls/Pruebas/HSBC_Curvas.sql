@@ -168,11 +168,6 @@ END
 GO
 
 
---SELECT * FROM  dbo.tblActiveX
---WHERE txtProceso = 'HSBC_CURVES'
-
-
-
 --UPDATE  dbo.tblActiveX
 --SET txtValor = '\\Vic-testsql\produccion\MxVprecios\PRODUCTOS\DEFINITIVO\HSBC\ACTUAL\'
 --WHERE txtProceso = 'HSBC_CURVES'

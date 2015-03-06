@@ -212,8 +212,8 @@ Descripcion  :   SP para crear producto BNP_D_XLS
 --SELECT * FROM  tblActiveX
 --WHERE txtProceso = 'BNP_D_XLS'
 
---SELECT * FROM  [VIA-MXSQL].MxFixIncome.dbo.tblActiveX
---WHERE txtProceso = 'BNP_D_XLS'
+SELECT * FROM  [VIA-MXSQL].MxFixIncome.dbo.tblActiveX
+WHERE txtProceso = 'BNP_D_XLS'
 
 
 --sp_linkedservers
