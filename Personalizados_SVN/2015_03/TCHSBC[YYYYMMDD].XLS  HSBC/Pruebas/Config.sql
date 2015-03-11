@@ -73,3 +73,12 @@ BITAL_TC_CSV
 BITAL_TC_XLS
 
 dbo.sp_productos_BITAL;22 
+
+
+SELECT * FROM dbo.tblActiveX
+WHERE txtDescripcion LIKE '%222%'
+
+
+SELECT message_id, severity, text
+  FROM sys.messages 
+  WHERE language_id = 1033; -- assuming US English
