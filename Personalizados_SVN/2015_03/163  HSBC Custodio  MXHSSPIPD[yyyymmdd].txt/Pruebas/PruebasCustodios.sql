@@ -21,7 +21,7 @@
 
 --CREATE  PROCEDURE dbo.sp_productos_BITAL;4  
 declare   
-  @txtDate AS VARCHAR(10) = '20150325',    
+  @txtDate AS VARCHAR(10) = '20150327',    
   @txtLiquidation AS VARCHAR(3)    = 'MD'
     
     --,'MD'
@@ -159,9 +159,6 @@ CASE
    'MIRC0004579','MIRC0004580','MIRC0004581','MIRC0004582','MIRC0004583','MIRC0004584','MIRC0004586','MIRC0004587',    
    'MIRC0004588','MIRC0004589','MIRC0004590','MIRC0004591','UIRC0008070')   
    
-   
-   
-
  --ORDER BY a.txtTv,a.txtEmisora,a.txtSerie    
     
     
@@ -308,7 +305,7 @@ CASE
 					 REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)))  -- Complemento SecuritiesName(35)    
 				  ELSE    
 				  SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)          -- SecuritiesName(35)    
-			  END + STR(ROUND(a.dblPRS/@txtIrcUSDvalue,6),14,5) +
+			  END + STR(ROUND(price.dblPRL/@txtIrcUSDvalue,6),14,5) +
 			  @Filler6 +     
 			  @txtDate +                  -- DateOfClosingPrice(8)    
 			  @Filler7 +     
@@ -327,6 +324,15 @@ CASE
 				 ELSE a.txtLiquidation      
 				 END    
 				)    
+				INNER JOIN  tmp_tblUnifiedPricesReport as price
+				on  price.txtID1 = a.txtId1
+				and price.dteDate =@txtDate 
+				AND price.txtLiquidation = (    
+			 CASE a.txtLiquidation      
+			 WHEN 'MP' THEN 'MD'      
+			 ELSE a.txtLiquidation      
+			 END    
+			)   
 			 WHERE a.txtLiquidation IN (@txtLiquidation,'MP')    
 			  AND a.txtTv NOT IN ('*C','*CSP','FA','FB','FC','FCSP','FD','FI','FM','FS','FU','RC','SWT','WA','WASP','WC','WE','WESP','WI',    
 				 'OD','OA','OI','SWT','TR','*ISP','1ASP','1ESP','1ISP','56SP','74SP','81SP','93SP','D1SP','D2SP','D3SP',    
@@ -359,7 +365,7 @@ CASE
 										 REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)))  -- Complemento SecuritiesName(35)    
 									  ELSE    
 									  SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)          -- SecuritiesName(35)    
-								  END + STR(ROUND(a.dblPRS/@txtIrcEURvalue,6),14,5) +
+								  END + STR(ROUND(price.dblPRL/@txtIrcEURvalue,6),14,5) +
 								  @Filler6 +     
 								  @txtDate +                  -- DateOfClosingPrice(8)    
 								  @Filler7 +     
@@ -378,6 +384,15 @@ CASE
 									 ELSE a.txtLiquidation      
 									 END    
 									)    
+									INNER JOIN  tmp_tblUnifiedPricesReport as price
+									   on  price.txtID1 = a.txtId1
+									and price.dteDate =@txtDate 
+										AND price.txtLiquidation = (    
+										 CASE a.txtLiquidation      
+										 WHEN 'MP' THEN 'MD'      
+										 ELSE a.txtLiquidation      
+										 END    
+										)   
 								 WHERE a.txtLiquidation IN (@txtLiquidation,'MP')    
 								  AND a.txtTv NOT IN ('*C','*CSP','FA','FB','FC','FCSP','FD','FI','FM','FS','FU','RC','SWT','WA','WASP','WC','WE','WESP','WI',    
 									 'OD','OA','OI','SWT','TR','*ISP','1ASP','1ESP','1ISP','56SP','74SP','81SP','93SP','D1SP','D2SP','D3SP',    
