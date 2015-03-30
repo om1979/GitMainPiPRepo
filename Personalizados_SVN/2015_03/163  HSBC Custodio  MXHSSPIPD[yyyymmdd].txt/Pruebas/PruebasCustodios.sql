@@ -14,14 +14,9 @@
 --   Modificacion: 01:41 p.m. 2010-10-14    
 --   Descripcion:     Modulo 4: Excluir del archivo el siguiente instrumento ID1: UIRC0008070    
 
-
-
-
-
-
 --CREATE  PROCEDURE dbo.sp_productos_BITAL;4  
 declare   
-  @txtDate AS VARCHAR(10) = '20150327',    
+  @txtDate AS VARCHAR(10) = '20150330',    
   @txtLiquidation AS VARCHAR(3)    = 'MD'
     
     --,'MD'
@@ -305,7 +300,7 @@ CASE
 					 REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)))  -- Complemento SecuritiesName(35)    
 				  ELSE    
 				  SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)          -- SecuritiesName(35)    
-			  END + STR(ROUND(price.dblPRL/@txtIrcUSDvalue,6),14,5) +
+			  END + STR(ROUND(price.dblPRS/@txtIrcUSDvalue,6),14,5) +
 			  @Filler6 +     
 			  @txtDate +                  -- DateOfClosingPrice(8)    
 			  @Filler7 +     
@@ -365,7 +360,7 @@ CASE
 										 REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)))  -- Complemento SecuritiesName(35)    
 									  ELSE    
 									  SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)          -- SecuritiesName(35)    
-								  END + STR(ROUND(price.dblPRL/@txtIrcEURvalue,6),14,5) +
+								  END + STR(ROUND(price.dblPRS/@txtIrcEURvalue,6),14,5) +
 								  @Filler6 +     
 								  @txtDate +                  -- DateOfClosingPrice(8)    
 								  @Filler7 +     
