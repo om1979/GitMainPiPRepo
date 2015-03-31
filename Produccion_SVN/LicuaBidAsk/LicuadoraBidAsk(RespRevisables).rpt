@@ -1,0 +1,2834 @@
+﻿Text
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- ======================================================
+--	Author:			Abraham Alamilla
+--	Date:			
+--	Description:	
+-- ======================================================
+CREATE PROCEDURE [dbo].[usp_LicuadoraRevisables]
+    @txtDate AS VARCHAR(10)
+   ,@fMatFlag AS BIT = 0
+AS
+BEGIN
+
+	SET NOCOUNT ON
+    SET ANSI_WARNINGS OFF
+    
+    DECLARE @intWhile int = 1
+			,@intCount int = 1
+			,@txtCategory CHAR(3)
+    
+    -- Drop table para pruebas
+	IF OBJECT_ID('tempdb..#tblTvs') IS NOT NULL
+        DROP TABLE #tblTvs
+        
+    create table #tblTvs
+    (
+		txtSubCategory varchar(5)
+    )
+    
+    -- Drop table para pruebas
+	IF OBJECT_ID('tempdb..#tblTvsWhile') IS NOT NULL
+        DROP TABLE #tblTvsWhile
+        
+    create table #tblTvsWhile
+    (
+		intId int identity
+		,txtCategory varchar(5)
+    )
+    
+    insert into #tblTvs
+    values ('BND')
+			,('BPS')
+			,('BGA')
+			,('IPB')
+			,('BGT')
+			,('BPT')
+			
+	insert into #tblTvsWhile(txtCategory)
+	select
+		txtSubCategory 
+	from #tblTvs
+
+	
+	select 
+		@intWhile = MAX(intId)
+	from #tblTvsWhile
+	
+	WHILE @intCount < @intWhile
+	BEGIN
+		
+		select @txtCategory = txtCategory
+		from #tblTvsWhile 
+		where intId = @intCount
+		
+		exec dbo.usp_LicuadoraRevisables;2 @txtDate, @txtCategory, @fMatFlag
+		
+		set @intCount += 1
+		
+	END
+
+	SET NOCOUNT OFF
+    SET ANSI_WARNINGS ON
+END
+
+
+-- ======================================================
+--	Author:			Abraham Alamilla
+--	Date:			
+--	Description:	
+-- ======================================================
+CREATE PROCEDURE [dbo].[usp_LicuadoraRevisables];2
+    @txtDate AS VARCHAR(10)
+   ,@txtCategory AS CHAR(4)
+   ,@fMatFlag AS BIT = 0
+AS
+BEGIN
+
+	SET NOCOUNT ON
+    SET ANSI_WARNINGS OFF
+
+    DECLARE @dteBegin AS DATETIME
+    DECLARE @dteEnd AS DATETIME
+		
+	-- Drop table para pruebas
+	IF OBJECT_ID('tempdb..#itblMarketPositions') IS NOT NULL
+		DROP TABLE #itblMarketPositions
+                
+    CREATE TABLE #itblMarketPositions
+    (
+		 intId INT IDENTITY
+		,intTVPlazoId INT
+		,txtTv CHAR(3)
+		,intPlazo INT
+		,dblRate FLOAT
+		,dblAmount FLOAT
+		,txtOperation CHAR(10)
+		,dteBeginHour DATETIME
+		,intBegin INT
+		,dteEndHour DATETIME
+		,intEnd INT
+		,bRange INT
+		,txtStatus char(1) PRIMARY KEY ( intId )
+	)
+		
+    CREATE INDEX [IX_itblMarketPositions] ON  #itblMarketPositions
+    (	
+        intId,
+        dteBeginHour,
+        dteEndHour
+    )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblTvPlazoCatalog') IS NOT NULL
+            DROP TABLE #tblTvPlazoCatalog
+		
+        CREATE TABLE #tblTvPlazoCatalog
+            (
+             intId INT IDENTITY
+            ,txtTv CHAR(3)
+            ,intPlazo INT PRIMARY KEY ( intId )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblHours') IS NOT NULL
+                DROP TABLE #tblHours
+                
+        CREATE TABLE #tblHours
+            (
+             intId INT IDENTITY
+            ,dteHour DATETIME PRIMARY KEY ( intId )
+            )
+            
+			-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblMaxYTMTime') IS NOT NULL
+            DROP TABLE #tblMaxYTMTime
+            
+        CREATE TABLE #tblMaxYTMTime
+            (
+             txtTv CHAR(3)
+            ,intPlazo INT
+            ,intSerial INT
+            ,dteTime DATETIME PRIMARY KEY ( txtTv, intPlazo, intSerial )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblMinOperation') IS NOT NULL
+                DROP TABLE #tblMinOperation
+                
+        CREATE TABLE #tblMinOperation
+            (
+             intTVPlazoId INT
+            ,intOperation INT PRIMARY KEY ( intTVPlazoId )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblOperations') IS NOT NULL
+                DROP TABLE #tblOperations
+                
+        CREATE TABLE #tblOperations
+            (
+             intId INT
+            ,intTVPlazoId INT
+            ,dblLastRate FLOAT
+            ,dblRate FLOAT
+            ,dblFinalRate FLOAT
+            ,dblAmount FLOAT
+            ,intBegin INT
+            ,intEnd INT
+            ,txtOperation CHAR(10)
+            ,intMinOperation INT
+            ,bRange INT
+            ,txtStatus char(1) PRIMARY KEY ( intId, intTVPlazoId )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tmp_itblPonderado') IS NOT NULL
+            DROP TABLE #tmp_itblPonderado
+                
+        CREATE TABLE #tmp_itblPonderado
+            (
+             intId INT IDENTITY(1, 1)
+            ,intTVPlazoId INT
+            ,txtOperation CHAR(10)
+            ,dblRate FLOAT
+            ,dblAmount FLOAT
+            ,intBegin INT
+            ,intEnd INT PRIMARY KEY ( intId )
+            )
+		
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblCorros') IS NOT NULL
+                DROP TABLE #tblCorros
+                
+        CREATE TABLE #tblCorros
+            (
+             intTVPlazoId INT
+            ,txtType CHAR(1)
+            ,dblRate FLOAT
+            ,dblAmount FLOAT
+            ,dblKey FLOAT
+            ,intBeg INT
+            ,intEnd INT PRIMARY KEY ( intTVPlazoId, dblRate )
+            )
+		
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblNewCorros') IS NOT NULL
+                DROP TABLE #tblNewCorros
+  
+      CREATE TABLE #tblNewCorros
+		   (
+             intTVPlazoId INT
+            ,txtType CHAR(1)
+            ,dblRate FLOAT
+            ,dblAmount FLOAT
+            ,dblKey FLOAT PRIMARY KEY ( intTVPlazoId, dblRate )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblCorroCerradoRate') IS NOT NULL
+                DROP TABLE #tblCorroCerradoRate
+                
+        CREATE TABLE #tblCorroCerradoRate
+            (
+             intTVPlazoId INT
+            ,dblRate FLOAT PRIMARY KEY ( intTVPlazoId )
+            )
+		
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblLastRates') IS NOT NULL
+                DROP TABLE #tblLastRates
+                
+        CREATE TABLE #tblLastRates
+            (
+             intTVPlazoId INT
+            ,dblLastRate FLOAT
+			,dblRate FLOAT PRIMARY KEY ( intTVPlazoId )
+            )
+		
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblNewRates') IS NOT NULL
+                DROP TABLE #tblNewRates
+                
+        CREATE TABLE #tblNewRates
+            (
+             intTVPlazoId INT
+            ,dblRate FLOAT PRIMARY KEY ( intTVPlazoId )
+            )
+            
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblBestRates') IS NOT NULL
+                DROP TABLE #tblBestRates
+
+        CREATE TABLE #tblBestRates
+            (
+             intTVPlazoId INT
+            ,txtOperation CHAR(10)
+            ,dblRate FLOAT PRIMARY KEY ( intTVPlazoId )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblBestDuration') IS NOT NULL
+                DROP TABLE #tblBestDuration
+
+        CREATE TABLE #tblBestDuration
+            (
+             intTVPlazoId INT
+            ,txtOperation CHAR(10)
+            ,intDuration INT PRIMARY KEY ( intTVPlazoId )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblPosturas') IS NOT NULL
+                DROP TABLE #tblPosturas
+
+        CREATE TABLE #tblPosturas
+            (
+             intTVPlazoId INT
+            ,intId INT
+            ,txtOperation CHAR(10)
+            ,dblRate FLOAT
+            ,dblAmount FLOAT
+            ,intBegin INT
+            ,intEnd INT PRIMARY KEY ( intTVPlazoId )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#itblCorroPonderado') IS NOT NULL
+                DROP TABLE #itblCorroPonderado
+
+        CREATE TABLE #itblCorroPonderado
+            (
+             txtOperationType CHAR(1)
+            ,txtTv CHAR(3)
+            ,intPlazo INT
+            ,dblRate FLOAT
+            ,dblAmount FLOAT
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblPosturasChoice') IS NOT NULL
+                DROP TABLE #tblPosturasChoice
+
+        CREATE TABLE #tblPosturasChoice
+            (
+             intTVPlazoId INT
+            ,intId INT
+            ,txtOperation CHAR(10)
+            ,dblRate FLOAT
+            ,dblAmount FLOAT
+            ,intBegin INT
+            ,intEnd INT PRIMARY KEY ( intId )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#tblFillHoles') IS NOT NULL
+                DROP TABLE #tblFillHoles
+
+        CREATE TABLE #tblFillHoles
+            (
+             intId INT
+            ,txtOperation CHAR(10)
+            ,intEnd INT
+            ,intNextBegin INT PRIMARY KEY ( intId )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#itblCorroPonderadoSubastas') IS NOT NULL
+                DROP TABLE #itblCorroPonderadoSubastas
+
+        CREATE TABLE #itblCorroPonderadoSubastas
+            (
+             txtTv CHAR(3)
+            ,intPlazo INT
+            ,dblRate FLOAT PRIMARY KEY ( txtTv, intPlazo )
+            )
+
+		-- Drop table para pruebas
+		IF OBJECT_ID('tempdb..#itblRangeOperationNodes') IS NOT NULL
+            DROP TABLE #itblRangeOperationNodes
+
+        CREATE TABLE #itblRangeOperationNodes
+            (
+             txtTv CHAR(3)
+   ,intTVPlazoId INT
+            ,intCount INT
+            )
+        						
+        DECLARE @dblMinRate FLOAT
+        DECLARE @dblMinAmount FLOAT
+        DECLARE @intMinTime INT
+        DECLARE @txtLiquidations CHAR(50)
+	
+		-- Cambiar datos de extracción
+        SELECT
+            @intMinTime = txtValue
+        FROM
+            itblBlenderParams
+     WHERE
+            txtBlender = @txtCategory
+            AND txtItem = 'STO'
+
+        SELECT
+            @dblMinAmount = txtValue
+        FROM
+            itblBlenderParams
+        WHERE
+            txtBlender = @txtCategory
+            AND txtItem = 'AMM'
+
+        SELECT
+            @dblMinRate = txtValue
+        FROM
+            itblBlenderParams
+        WHERE
+            txtBlender = @txtCategory
+            AND txtItem = 'AMT'
+		
+        SELECT
+            @dblMinRate = txtValue
+        FROM
+            itblBlenderParams
+        WHERE
+            txtBlender = @txtCategory
+            AND txtItem = 'AMT'
+
+        SELECT
+            @txtLiquidations = txtValue
+        FROM
+            itblBlenderParams
+        WHERE
+            txtBlender = @txtCategory
+            AND txtItem = 'ACL'
+
+		--Obtengo las operaciones del periodo
+        IF @fMatFlag = 0 
+            BEGIN
+	
+                SELECT
+                    @dteBegin = dteHoraIniDia
+                FROM
+                    itblParametrosLicuadora
+
+                SELECT
+                    @dteEnd = dteHoraMatutino
+                FROM
+                    itblParametrosLicuadora
+            END
+
+        ELSE 
+            BEGIN
+	
+                SELECT
+                    @dteBegin = DATEADD(s, 1, dteHoraMatutino)	-- 1900-01-01 12:59:59.000	
+                FROM
+                    itblParametrosLicuadora
+
+                SELECT
+                    @dteEnd = dteCloseHour --1900-01-01 13:51:00.000
+                FROM
+                    itblClosesRandom
+                WHERE
+                    dteDate = @txtDate
+			
+            END 
+            
+         -- Universo
+        INSERT  #itblMarketPositions
+                ( 
+                 txtTv
+                ,intPlazo
+                ,dblRate
+                ,dblAmount
+                ,txtOperation
+                ,dteBeginHour
+                ,dteEndHour
+                )
+                SELECT
+                    p.txtTv
+                   ,p.intPlazo
+                   ,p.dblRate
+                   ,SUM(p.dblAmount)
+                   ,CASE WHEN p.txtOperation LIKE 'HECHO%'
+                         THEN 'HECHO'
+                         ELSE p.txtOperation
+                    END AS txtOperation
+                   ,CASE WHEN CONVERT(DATETIME, CONVERT(CHAR(5), p.dteBeginHour, 24)) < @dteBegin
+                         THEN CONVERT(CHAR(5), @dteBegin, 24)
+                         ELSE CONVERT(CHAR(5), p.dteBeginHour, 24)
+	               END AS dteBeginHour
+                   ,CASE WHEN CONVERT(DATETIME, CONVERT(CHAR(5), p.dteEndHour, 24)) > @dteEnd
+                         THEN CONVERT(CHAR(5), @dteEnd, 24)
+                         ELSE CONVERT(CHAR(5), p.dteEndHour, 24)
+                    END AS dteEndHour
+                FROM
+                    itblMarketPositions p
+                    INNER JOIN itblCategoryTvs t ON p.txtTv = t.txtTv
+                WHERE
+                    t.txtCategory = @txtCategory
+                    AND p.dteDate = @txtDate
+                    AND 1 = CASE WHEN @txtLiquidations = 'ALL' THEN 1
+                                 WHEN @txtLiquidations = p.txtLiquidation
+                                 THEN 1
+                            END
+                    AND p.dblAmount > @dblMinAmount
+                    AND p.dblRate < @dblMinRate
+                    AND CASE WHEN p.txtOperation LIKE 'HECHO%' THEN 60
+                             ELSE DATEDIFF(SECOND, p.dteBeginHour,
+                                           p.dteEndHour)
+  END > @intMinTime
+                    AND p.dteEndHour > @dteBegin
+                    AND p.dteBeginHour <= @dteEnd
+                GROUP BY
+                    p.txtTv
+                   ,p.intPlazo
+                   ,p.dblRate
+                   ,p.txtOperation
+				   ,CONVERT(CHAR(5), p.dteBeginHour, 24)
+                   ,CONVERT(CHAR(5), p.dteEndHour, 24)
+                UNION
+                SELECT
+                    p.txtTv
+                   ,p.intPlazoIni
+                   ,p.dblRate
+                   ,SUM(p.dblAmount)
+                   ,CASE WHEN p.txtOperation LIKE 'HECHO%'
+                         THEN 'HECHO'
+                         ELSE p.txtOperation
+                    END AS txtOperation
+                   ,CASE WHEN CONVERT(DATETIME, CONVERT(CHAR(5), p.dteBeginHour, 24)) < @dteBegin
+                         THEN CONVERT(CHAR(5), @dteBegin, 24)
+                         ELSE CONVERT(CHAR(5), p.dteBeginHour, 24)
+	                    END AS dteBeginHour
+                   ,CASE WHEN CONVERT(DATETIME, CONVERT(CHAR(5), p.dteEndHour, 24)) > @dteEnd
+                         THEN CONVERT(CHAR(5), @dteEnd, 24)
+                         ELSE CONVERT(CHAR(5), p.dteEndHour, 24)
+                    END AS dteEndHour
+                FROM
+                    itblMarketPositionsRevi p
+                    INNER JOIN itblCategoryTvs t ON p.txtTv = t.txtTv
+                WHERE
+                    t.txtCategory = @txtCategory
+                    AND p.dteDate = @txtDate
+                    AND 1 = CASE WHEN @txtLiquidations = 'ALL' THEN 1
+                                 WHEN @txtLiquidations = p.txtLiquidation
+                                 THEN 1
+                            END
+                    AND p.dblAmount > @dblMinAmount
+                    AND p.dblRate < @dblMinRate
+                    AND CASE WHEN p.txtOperation LIKE 'HECHO%' THEN 60
+                             ELSE DATEDIFF(SECOND, p.dteBeginHour,
+                                           p.dteEndHour)
+                        END > @intMinTime
+                    AND p.dteEndHour > @dteBegin
+                    AND p.dteBeginHour <= @dteEnd
+				 GROUP BY
+                    p.txtTv
+                   ,p.intPlazoIni
+                   ,p.dblRate
+                   ,p.txtOperation
+					,CONVERT(CHAR(5), p.dteBeginHour, 24)
+                   ,CONVERT(CHAR(5), p.dteEndHour, 24)
+                ORDER BY
+                    1
+                   ,6
+                   ,7 		
+	
+        INSERT  #tblTvPlazoCatalog
+                ( 
+                 txtTv
+                ,intPlazo
+                )
+                SELECT DISTINCT
+                    txtTV
+                   ,intPlazo
+         FROM
+                    #itblMarketPositions
+
+        UPDATE
+            m
+        SET 
+            intTVPlazoId = c.intId
+        FROM
+            #itblMarketPositions m
+            INNER JOIN #tblTvPlazoCatalog c ON m.txtTv = c.txtTv
+                                               AND m.intPlazo = c.intPlazo
+
+        INSERT  #tblHours
+                ( 
+                 dteHour
+                )
+                SELECT DISTINCT
+                    dteBeginHour
+                FROM
+                    #itblMarketPositions
+                UNION
+                SELECT DISTINCT
+                    dteEndHour
+                FROM
+                    #itblMarketPositions
+                ORDER BY
+                    1
+
+		-- Obtengo el codigo de horas
+        UPDATE
+            m
+        SET 
+            m.intBegin = b.intId
+           ,m.intEnd = e.intId
+        FROM
+            #itblMarketPositions m
+            INNER JOIN #tblHours b ON m.dteBeginHour = b.dteHour
+            INNER JOIN #tblHours e ON m.dteEndHour = e.dteHour
+	
+		-- Actualizo los que operaron por rango
+		UPDATE mpr set bRange = 1
+		from
+			itblMarketReviRangeNodes mrrn
+			inner join #itblMarketPositions mpr on mrrn.txtTv = mpr.txtTv
+										and mrrn.txtOperation = mpr.txtOperation
+										and mrrn.intTerm = mpr.intPlazo
+			inner join #tblHours b on mpr.dteBeginHour = b.dteHour
+			inner join #tblHours e on mpr.dteEndHour = e.dteHour
+		where mrrn.dteDate = @txtDate
+		
+		-- Obtengo las operaciones por rango
+		;with tblTemporal(txtTv, intTVPlazo, intCount)
+			as(
+				select 
+					txtTv
+					,intTVPlazoId
+					,COUNT(intTVPlazoId)
+				from #itblMarketPositions mp
+				group by txtTv,bRange,intTVPlazoId
+			)
+			insert into #itblRangeOperationNodes
+			select 
+				txtTv
+				,intTVPlazo
+				,COUNT(intTVPlazo)
+			from tblTemporal t 
+			group by txtTv, intTVPlazo
+			having COUNT(intTVPlazo) > 1
+		
+		-- Desactivo los rango para los que operaron en específico
+		--select distinct mp.*
+		update mp set bRange = -1
+		from #itblMarketPositions mp
+			inner join #itblRangeOperationNodes rn on mp.intTVPlazoId = rn.intTVPlazoId
+			left outer join #itblMarketPositions mp2 on mp.intTVPlazoId = mp2.intTVPlazoId
+														and mp.txtTv = mp2.txtTv
+			inner join  #itblRangeOperationNodes rn2 on mp.intTVPlazoId = rn2.intTVPlazoId
+		where mp.bRange = 1 and mp2.bRange is null
+		
+		-- Obtengo las tasas
+        IF @fMatFlag = 0 
+            BEGIN
+		
+                INSERT  #tblMaxYTMTime
+                        ( 
+                         txtTv
+                        ,intPlazo
+                        ,intSerial
+                        ,dteTime
+                        )
+                        SELECT
+                            t.txtTV
+                           ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo
+                           ,c.intSerialYTM AS intSerial
+                           ,MAX(l.dteTime) AS dteTime
+                        FROM
+                            itblNodesYTMCatalog c ( NOLOCK )
+                            INNER JOIN tblBonds b ( NOLOCK ) ON c.txtId1 = b.txtId1
+                            INNER JOIN itblCategoryTvs t ( NOLOCK ) ON c.txtCategory = t.txtCategory
+                                         AND c.txtSubCategory = t.txtSubCategory
+                            INNER JOIN itblNodesYTMLevels l ( NOLOCK ) ON c.intSerialYTM = l.intSerialYTM
+                        WHERE
+                            c.txtCategory = @txtCategory
+                            AND c.fStatus = 1
+                            AND c.dteBeg <= @txtDate
+                            AND l.dteDate = dbo.fun_NextTradingDate(@txtDate,
+                                                              -1, 'MX')
+                        GROUP BY
+                            t.txtTV
+                           ,b.dteMaturity
+                           ,c.intSerialYTM
+                        ORDER BY
+                            1
+
+                INSERT  #tblLastRates
+                        ( 
+                         intTVPlazoId
+                        ,dblLastRate
+                        ,dblRate
+                        )
+                        SELECT
+                            c.intId
+                           ,l.dblValue
+                           ,l.dblValue
+                        FROM
+                            #tblMaxYTMTime m
+                            INNER JOIN itblNodesYTMLevels l ( NOLOCK ) ON m.intSerial = l.intSerialYTM
+                        AND m.dteTime = l.dteTime
+							 INNER JOIN #tblTvPlazoCatalog c ON m.txtTv = c.txtTv
+                                                              AND m.intPlazo = c.intPlazo
+                        WHERE
+                            l.dteDate = dbo.fun_NextTradingDate(@txtDate, -1,
+                                                              'MX')
+            END
+        ELSE 
+            BEGIN
+		
+                INSERT  #tblLastRates
+                        ( 
+                         intTVPlazoId
+                        ,dblLastRate
+                        ,dblRate
+          )
+           SELECT DISTINCT
+                            p.intTVPlazoId
+                           ,t.dblTasaFinal
+                           ,t.dblTasaFinal
+                        FROM
+                            itblTasasRevLicuadasIG t ( NOLOCK )
+                            INNER JOIN #itblMarketPositions p ON t.txtTV = p.txtTV
+                                                              AND t.intPlazoIni = p.intPlazo
+                        WHERE
+                            t.fStatus = 0		
+            END
+	
+        DECLARE @intHoras AS INT
+        DECLARE @intHour AS INT
+
+        SET @intHour = 1
+
+        SELECT
+            @intHoras = COUNT(*)
+        FROM
+            #tblHours
+
+        WHILE @intHour <= @intHoras 
+            BEGIN
+		
+                TRUNCATE TABLE #tblOperations
+                TRUNCATE TABLE #tblMinOperation
+                TRUNCATE TABLE #tblNewRates
+                TRUNCATE TABLE #tblNewCorros
+                TRUNCATE TABLE #tblBestRates
+                TRUNCATE TABLE #tblBestDuration
+		
+                INSERT  #tblOperations
+                        ( 
+                         intId
+                        ,intTVPlazoId
+                        ,dblLastRate
+                        ,dblRate
+                        ,dblFinalRate
+                        ,dblAmount
+                        ,intBegin
+                        ,intEnd
+                        ,txtOperation
+                        ,bRange
+                        ,txtStatus
+                        )
+                        SELECT
+                            m.intId
+                           ,m.intTVPlazoId
+                           ,r.dblLastRate
+                           ,m.dblRate
+                           ,r.dblRate
+                           ,m.dblAmount
+                           ,m.intBegin
+                           ,m.intEnd
+                           ,m.txtOperation
+                           ,m.bRange
+                           ,m.txtStatus
+FROM
+                            #itblMarketPositions m
+                            INNER JOIN #tblLastRates r ON m.intTVPlazoId = r.intTVPlazoId
+                        WHERE
+                            m.intBegin <= @intHour
+                            AND m.intEnd >= @intHour
+                            AND ISNULL(bRange, 1) = 1
+		
+                INSERT  #tblMinOperation
+					   ( 
+                         intTVPlazoId
+                        ,intOperation
+                        )
+                        SELECT
+                            intTVPlazoId
+                           ,MIN(CASE WHEN txtOperation LIKE 'HECHO%' THEN 1
+                                     ELSE 3
+                                END)
+                        FROM
+                            #tblOperations
+                        GROUP BY
+                            intTVPlazoId
+		
+                UPDATE
+                    m
+                SET 
+                    m.intOperation = 2
+                FROM
+                    #tblOperations v
+                    INNER JOIN #tblOperations c ON v.intTVPlazoId = c.intTVPlazoId
+                                                   AND v.dblRate = c.dblRate
+                    INNER JOIN #tblMinOperation m ON v.intTVPlazoId = m.intTVPlazoId
+                WHERE
+                    c.txtOperation = 'COMPRA'
+                    AND v.txtOperation = 'VENTA'
+			
+                UPDATE o
+                SET 
+					o.intMinOperation = m.intOperation
+				FROM
+                    #tblOperations o
+                    INNER JOIN #tblMinOperation m ON o.intTVPlazoId = m.intTVPlazoId
+			
+				-- Quito las posturas de los plazos que:
+				
+				-- Ya tengan algo mas alto
+				-- Que ya no esten vivas
+		
+                UPDATE
+                    p
+                SET 
+                    p.intEnd = @intHour - 1
+                FROM
+                    #tblPosturas p
+                    LEFT OUTER JOIN #tblOperations o ON p.intId = o.intId
+                WHERE
+                    o.intMinOperation < 3
+                    OR o.intMinOperation IS NULL
+		
+                INSERT  #tmp_itblPonderado
+                        ( 
+                         intTVPlazoId
+                        ,txtOperation
+                        ,dblRate
+                        ,dblAmount
+                        ,intBegin
+                        ,intEnd
+                        )
+                        SELECT
+                            intTVPlazoId
+                           ,txtOperation
+                           ,dblRate
+                           ,dblAmount
+                           ,intBegin
+                           ,intEnd
+                        FROM
+                            #tblPosturas
+                        WHERE
+                            intEnd != -999
+			
+				-- Elimino
+                DELETE FROM
+                    #tblPosturas
+                WHERE
+                    intEnd != -999
+		
+				-- Corros invertidos
+                INSERT  #tblNewCorros
+                        ( 
+                         intTVPlazoId
+                        ,txtType
+                        ,dblRate
+                        ,dblAmount
+                        ,dblKey
+                        )
+                        SELECT
+                            v.intTVPlazoId
+                           ,'I'
+                           ,( AVG(v.dblRate) + AVG(c.dblRate) ) / 2
+                           ,CASE WHEN MIN(v.dblAmount) <= MIN(c.dblAmount)
+                                 THEN MIN(v.dblAmount)
+                                 ELSE MIN(c.dblAmount)
+                            END
+                           ,SUM(v.dblRate) + SUM(c.dblRate) / SUM(v.dblAmount)
+                            + SUM(c.dblAmount)
+                        FROM
+                            #tblOperations v
+                            INNER JOIN #tblOperations c ON v.intTVPlazoId = c.intTVPlazoId
+                        WHERE
+                            c.txtOperation = 'COMPRA'
+                            AND v.txtOperation = 'VENTA'
+                            AND v.intMinOperation = 3
+                            AND v.dblRate > c.dblRate
+                        GROUP BY
+                            v.intTVPlazoId
+			
+
+             INSERT  #tblNewCorros
+                        ( 
+                         intTVPlazoId
+                        ,txtType
+                        ,dblRate
+                        ,dblAmount
+                        ,dblKey
+                        )
+                        SELECT
+                            v.intTVPlazoId
+                           ,'C'
+                           ,( AVG(v.dblRate) + AVG(c.dblRate) ) / 2
+                           ,CASE WHEN MIN(v.dblAmount) <= MIN(c.dblAmount)
+                                 THEN MIN(v.dblAmount)
+                                 ELSE MIN(c.dblAmount)
+                            END
+                           ,SUM(v.dblRate) + SUM(c.dblRate) / SUM(v.dblAmount)
+                            + SUM(c.dblAmount)
+                        FROM
+                            #tblOperations v
+                            INNER JOIN #tblOperations c ON v.intTVPlazoId = c.intTVPlazoId
+                            LEFT OUTER JOIN #tblNewCorros n ON v.intTVPlazoId = n.intTVPlazoId
+							LEFT OUTER JOIN #tblCorroCerradoRate r ON v.intTVPlazoId = r.intTVPlazoId
+						WHERE
+                            c.txtOperation = 'COMPRA'
+                            AND v.txtOperation = 'VENTA'
+                            AND 1 = CASE WHEN ROUND(c.dblRate, 3) <= ROUND(ISNULL(r.dblRate,
+                                    c.dblFinalRate),
+                              3)
+                                              AND ROUND(v.dblRate, 3) >= ROUND(c.dblRate
+        , 3) THEN 1
+                                         WHEN ROUND(v.dblRate, 3) >= ROUND(ISNULL(r.dblRate,
+                                                              v.dblFinalRate),
+                                                              3)
+                                              AND ROUND(c.dblRate, 3) <= ROUND(v.dblRate
+                                                              , 3) THEN 1
+                                         ELSE 0
+                                    END
+                            AND v.dblRate < c.dblrate
+                            AND v.intMinOperation = 3
+                            AND n.intTVPlazoId IS NULL
+                        GROUP BY
+                            v.intTVPlazoId
+		
+				-- Guardo la tasa original para seguir validando el corro
+                INSERT  #tblCorroCerradoRate
+                        ( 
+                         intTVPlazoId
+                        ,dblRate
+                        )
+                        SELECT DISTINCT
+                            o.intTVPlazoId
+                           ,o.dblLastRate
+                        FROM
+                            #tblNewCorros n
+                            INNER JOIN #tblOperations o ON n.intTVPlazoId = o.intTVPlazoId
+                            LEFT OUTER JOIN #tblCorros c ON n.intTVPlazoId = c.intTVPlazoId
+                                                            AND n.txtType = c.txtType
+						--AND n.dblKey = c.dblKey
+                        WHERE
+                            n.txtType = 'C'
+                            AND c.intTVPlazoId IS NULL
+				
+                INSERT  #tblNewCorros
+                        ( 
+                         intTVPlazoId
+                        ,txtType
+                        ,dblRate
+                        ,dblAmount
+                        ,dblKey
+                        )
+                        SELECT
+                            v.intTVPlazoId
+                           ,'H'
+                           ,v.dblRate
+                           ,CASE WHEN MIN(v.dblAmount) <= MIN(c.dblAmount)
+                                 THEN MIN(v.dblAmount)
+                                 ELSE MIN(c.dblAmount)
+							 END
+						  ,SUM(v.dblRate) + SUM(c.dblRate)
+                            / COUNT(v.dblAmount) + COUNT(c.dblAmount)
+                        FROM
+                            #tblOperations v
+                            INNER JOIN #tblOperations c ON v.intTVPlazoId = c.intTVPlazoId
+                        WHERE
+                            c.txtOperation = 'COMPRA'
+                            AND v.txtOperation = 'VENTA'
+                            AND v.dblRate = c.dblrate
+                            AND v.intMinOperation = 2
+                        GROUP BY
+                            v.intTVPlazoId
+                           ,v.dblRate
+
+				-- Mato los corros que ya no existan
+                UPDATE
+                    c
+                SET 
+                    c.intEnd = @intHour - 1
+                FROM
+                    #tblCorros c
+                    LEFT OUTER JOIN #tblNewCorros n ON c.intTVPlazoId = n.intTVPlazoId
+                                                       AND c.txtType = n.txtType
+                WHERE
+                    n.intTVPlazoId IS NULL
+		
+				-- Mato los corros cerrados que cambian a invertidos o choice
+				UPDATE
+                    c
+                SET 
+                    c.intEnd = @intHour - 1
+                FROM
+                    #tblCorros c
+                    INNER JOIN #tblNewCorros n ON c.intTVPlazoId = n.intTVPlazoId
+                WHERE
+                    c.txtType = 'C'
+                    AND n.txtType IN ( 'I', 'H' )
+		
+				-- Mato los que cambian de llave
+                UPDATE
+                    c
+                SET 
+                    c.intEnd = @intHour - 1
+                FROM
+                    #tblCorros c
+                    INNER JOIN #tblNewCorros n ON c.intTVPlazoId = n.intTVPlazoId
+                             AND c.txtType = n.txtType
+                                                  AND c.dblKey != n.dblKey
+                WHERE
+                    c.intEnd = -999
+
+				-- Inserto para ponderar
+                INSERT  #tmp_itblPonderado
+                        ( 
+                         intTVPlazoId
+                        ,txtOperation
+                        ,dblRate
+                        ,dblAmount
+                        ,intBegin
+                        ,intEnd
+                        )
+                        SELECT
+                            intTVPlazoId
+                           ,txtType
+                           ,dblRate
+                           ,dblAmount
+                           ,intBeg
+                           ,intEnd
+                        FROM
+                            #tblCorros
+                        WHERE
+                            intEnd != -999
+				
+				-- Elimino los corros que ya ponderaron
+                DELETE FROM
+                    #tblCorros
+                WHERE
+                    intEnd != -999
+
+				-- Inserto los corros nuevos
+                INSERT  #tblCorros
+                        ( 
+                         intTVPlazoId
+                        ,txtType
+                        ,dblRate
+                        ,dblAmount
+                        ,dblKey
+                        ,intBeg
+                        ,intEnd
+                        )
+                        SELECT
+                            n.intTVPlazoId
+                           ,n.txtType
+                           ,n.dblRate
+                           ,n.dblAmount
+                           ,n.dblKey
+                           ,@intHour
+                           ,-999
+                        FROM
+                            #tblNewCorros n
+                            LEFT OUTER JOIN #tblCorros c ON n.intTVPlazoId = c.intTVPlazoId
+                        WHERE
+                            c.intTVPlazoId IS NULL
+			
+				-- Elimino la tasa del corro cerrado
+                DELETE
+                   r
+				FROM
+                    #tblCorroCerradoRate r
+                    LEFT OUTER JOIN #tblCorros c ON r.intTVPlazoId = c.intTVPlazoId
+                                                    AND c.intEnd = -999
+                                                    AND c.txtType = 'C'
+                WHERE
+                    c.intTVPlazoId IS NULL	
+			
+				-- Mato las posturas cuyos plazos entraron en un corro
+                UPDATE
+                    p
+                SET 
+                    p.intEnd = @intHour - 1
+                FROM
+                    #tblPosturas p
+                    INNER JOIN #tblCorros c ON p.intTVPlazoId = c.intTVPlazoId
+		
+                INSERT  #tmp_itblPonderado
+                        ( 
+                         intTVPlazoId
+                        ,txtOperation
+                        ,dblRate
+                        ,dblAmount
+                        ,intBegin
+                        ,intEnd
+                        )
+                        SELECT
+                            intTVPlazoId
+						   ,txtOperation
+                           ,dblRate
+                           ,dblAmount
+                           ,intBegin
+                           ,intEnd
+                        FROM
+                            #tblPosturas
+                        WHERE
+                            intEnd != -999
+			
+				-- Elimino
+                DELETE FROM
+					#tblPosturas
+                WHERE
+                    intEnd != -999
+			
+		--------------------------------------------------------------------------------------------------------------
+		-----------------------------------LICUADO--------------------------------------------------------------------
+		--------------------------------------------------------------------------------------------------------------
+		
+				-- Hechos
+                INSERT  #tmp_itblPonderado
+                        ( 
+                         intTVPlazoId
+                        ,txtOperation
+                        ,dblRate
+                        ,dblAmount
+                        ,intBegin
+                        ,intEnd
+                        )
+                        SELECT
+                            intTVPlazoId
+                           ,txtOperation
+                           ,dblRate
+                           ,SUM(dblAmount)
+                           ,intBegin
+                           ,intEnd
+                        FROM
+                            #tblOperations o
+                        WHERE
+                            txtOperation LIKE 'HECHO%'
+                        GROUP BY
+                            intTVPlazoId
+                           ,txtOperation
+                           ,dblRate
+                           ,intBegin
+                           ,intEnd
+
+				-- Obtenemos las tasas
+                INSERT  #tblNewRates
+                        ( 
+                         intTVPlazoId
+                        ,dblRate
+                        )
+                        SELECT
+                            intTVPlazoId
+                           ,AVG(dblRate)
+                        FROM
+                            #tblOperations
+                        WHERE
+                            intMinOperation = 1
+                            AND txtOperation LIKE 'HECHO%'
+                        GROUP BY
+                            intTVPlazoId
+                        UNION
+                        SELECT
+                            intTVPlazoId
+                           ,AVG(dblRate)
+                        FROM
+                            #tblCorros
+                        GROUP BY
+                            intTVPlazoId
+			
+				-- Valido si existen posturas que mejoren el nivel guardo las mejores tasas
+                INSERT  #tblBestRates
+                        ( 
+						intTVPlazoId
+                        ,txtOperation
+                        ,dblRate
+                        )
+                        SELECT
+                            o.intTVPlazoId
+                           ,o.txtOperation
+                           ,CASE WHEN o.txtOperation = 'VENTA'
+                                 THEN MAX(o.dblRate)
+                                 WHEN o.txtOperation = 'COMPRA'
+                                 THEN MIN(o.dblRate)
+                            END AS dblRate
+                        FROM
+                            #tblOperations o
+                            LEFT OUTER JOIN #tblCorros c ON o.intTVPlazoId = c.intTVPlazoId
+                        WHERE
+                            o.intMinOperation = 3
+                            AND c.intTVPlazoId IS NULL
+                            AND 1 = CASE WHEN o.txtOperation = 'VENTA'
+                                              AND ROUND(o.dblRate, 10) >= ROUND(o.dblFinalRate,
+                                                              10) THEN 1
+                                         WHEN o.txtOperation = 'COMPRA'
+                                        AND ROUND(o.dblRate, 10) <= ROUND(o.dblFinalRate,
+																						10) THEN 1
+                                         ELSE 0
+                                    END
+                        GROUP BY
+                            o.intTVPlazoId
+                           ,o.txtOperation
+
+				-- Obtengo la postura mas larga con esa tasa
+                INSERT  #tblBestDuration
+                        ( 
+                         intTVPlazoId
+                        ,txtOperation
+                        ,intDuration
+                        )
+                        SELECT
+                            r.intTVPlazoId
+                           ,r.txtOperation
+                           ,MAX(intEnd - intBegin)
+   FROM
+                            #tblBestRates r
+                            INNER JOIN #tblOperations o ON r.intTVPlazoId = o.intTVPlazoId
+                                                           AND r.dblRate = o.dblRate
+                                                           AND r.txtOperation = o.txtOperation
+                        GROUP BY
+                            r.intTVPlazoId
+                           ,r.txtOperation
+			
+				-- Elimino la mejor postura anterior
+                UPDATE
+                    p
+                SET 
+                    p.intEnd = @intHour - 1
+                FROM
+                    #tblPosturas p
+                    INNER JOIN #tblBestRates r ON p.intTVPlazoId = r.intTVPlazoId
+					AND 1 = 
+						CASE
+							WHEN p.txtOperation = r.txtOperation AND p.txtOperation = 'VENTA' AND r.dblRate > p.dblRate THEN 1
+							WHEN p.txtOperation = r.txtOperation AND p.txtOperation = 'COMPRA' AND r.dblRate < p.dblRate THEN 1
+							ELSE 0
+						END
+													
+                INSERT  #tmp_itblPonderado
+                        ( 
+                         intTVPlazoId
+                        ,txtOperation
+                        ,dblRate
+                        ,dblAmount
+                        ,intBegin
+                        ,intEnd
+                        )
+                        SELECT
+                            intTVPlazoId
+                           ,txtOperation
+                           ,dblRate
+                           ,dblAmount
+                           ,intBegin
+                           ,intEnd
+                        FROM
+                            #tblPosturas
+                        WHERE
+                            intEnd != -999
+			
+				-- Elimino
+                DELETE FROM
+                    #tblPosturas
+                WHERE
+                    intEnd != -999
+		
+				-- Inserto las posturas
+                INSERT  #tblPosturas
+                        ( 
+                         intTVPlazoId
+                        ,intId
+                        ,txtOperation
+						,dblRate
+                        ,dblAmount
+                        ,intBegin
+                        ,intEnd
+                        )
+                    SELECT
+							 o.intTVPlazoId
+                           ,MIN(o.intId)
+                           ,o.txtOperation
+                           ,o.dblRate
+                           ,SUM(o.dblAmount)
+                           ,@intHour
+                           ,-999
+                        FROM
+                            #tblOperations o
+                            INNER JOIN #tblBestRates r ON o.intTVPlazoId = r.intTVPlazoId
+                                                          AND o.txtOperation = r.txtOperation
+                                                          AND o.dblRate = r.dblRate
+                            INNER JOIN #tblBestDuration d ON o.intTVPlazoId = d.intTVPlazoId
+                                                             AND o.txtOperation = d.txtOperation
+                                                             AND o.intEnd
+                                                             - o.intBegin = d.intDuration
+                            LEFT OUTER JOIN #tblPosturas p ON o.intTVPlazoId = p.intTVPlazoId
+                        WHERE
+							p.intId IS NULL
+                        GROUP BY
+                            o.intTVPlazoId
+                           ,o.txtOperation
+                           ,o.dblRate
+                           
+				-- Actualizo las tasas
+                INSERT  #tblNewRates
+                        ( 
+						intTVPlazoId
+                        ,dblRate
+                        )
+                        SELECT
+                            intTVPlazoId
+                           ,dblRate
+                        FROM
+                            #tblPosturas
+		
+				-- Actualizo las tasas anteriores
+                UPDATE
+ r
+                SET 
+                    r.dblLastRate = o.dblFinalRate
+                FROM
+                    #tblPosturas p
+                    INNER JOIN #tblOperations o ON p.intId = o.intId
+                    INNER JOIN #tblLastRates r ON o.intTVPlazoId = r.intTVPlazoId
+		
+				-- Actualizo los cambios
+                UPDATE
+                    r
+                SET 
+                    r.dblRate = n.dblRate
+                FROM
+                    #tblLastRates r
+                    INNER JOIN #tblNewRates n ON r.intTVPlazoId = n.intTVPlazoId
+		
+                SET @intHour = @intHour + 1
+
+            END
+
+		-- Inserto los corros y las posturas que sigan vivas
+        INSERT  #tmp_itblPonderado
+                ( 
+                 intTVPlazoId
+                ,txtOperation
+                ,dblRate
+                ,dblAmount
+                ,intBegin
+                ,intEnd
+                )
+                SELECT
+                    intTVPlazoId
+                   ,txtType
+                   ,dblRate
+                   ,dblAmount
+                   ,intBeg
+                   ,@intHour - 1
+                FROM
+                    #tblCorros
+                WHERE
+                    intEnd = -999
+                UNION
+                SELECT
+                    intTVPlazoId
+                   ,txtOperation
+                   ,dblRate
+                   ,dblAmount
+                   ,intBegin
+                   ,@intHour - 1
+                FROM
+                    #tblPosturas
+                WHERE
+                    intEnd = -999
+
+		-- Actualizo las horas de fin de los choice
+        UPDATE
+            #tmp_itblPonderado
+        SET 
+            intEnd = intBegin
+        WHERE
+            txtOperation = 'H'
+	
+		-- Relleno los espacios intermedios	
+        INSERT  #tblFillHoles
+                ( 
+                 intId
+                ,txtOperation
+                ,intEnd
+                ,intNextBegin
+                )
+                SELECT
+                    l.intId
+                   ,l.txtOperation
+                   ,l.intEnd
+             ,CASE WHEN MIN(n.intBegin) IS NULL THEN -999
+                         ELSE MIN(n.intBegin)
+                    END
+                FROM
+                    #tmp_itblPonderado l
+                    LEFT OUTER JOIN #tmp_itblPonderado n ON l.intTVPlazoId = n.intTVPlazoId
+                                                            AND l.intId != n.intId
+                                                            AND l.intEnd < n.intBegin
+                GROUP BY
+                    l.intId
+                   ,l.intEnd
+                   ,l.txtOperation
+		
+        UPDATE
+            p
+        SET 
+            p.intEnd = h.intNextBegin
+        FROM
+            #tblFillHoles h
+            INNER JOIN #tmp_itblPonderado p ON h.intId = p.intId
+        WHERE
+            h.intEnd != h.intNextBegin
+            AND h.intNextBegin != -999
+            AND h.txtOperation NOT LIKE 'H%'
+
+        INSERT  #tmp_itblPonderado
+                ( 
+                 intTVPlazoId
+                ,txtOperation
+                ,dblRate
+                ,dblAmount
+                ,intBegin
+                ,intEnd
+                )
+                SELECT
+                    p.intTVPlazoId
+                   ,'POSTURA_H'
+                   ,p.dblRate
+                   ,p.dblAmount
+                   ,p.intEnd
+            ,h.intNextBegin - 1
+                FROM
+                    #tblFillHoles h
+              INNER JOIN #tmp_itblPonderado p ON h.intId = p.intId
+                WHERE
+                    h.intEnd + 1 != h.intNextBegin
+                    AND h.intNextBegin != -999
+                    AND h.txtOperation LIKE 'H%'
+		
+		
+		-- Elimino para insertar itblPonderado
+        DELETE
+            p
+        FROM
+    itblPonderadoRev p
+           INNER JOIN #tblTvPlazoCatalog t ON p.txtTV = t.txtTV
+        WHERE
+            p.dteDate = @txtDate
+            AND p.dteBeginHour >= @dteBegin
+            AND p.dteEndHour <= @dteEnd		
+	
+		-- Inserto en itblPonderado
+        INSERT  dbo.itblPonderadoRev
+                ( 
+                 dteDate
+                ,intPlazoIni
+                ,txtOperation
+                ,txtTv
+                ,dblRate
+                ,dblAmount
+                ,dteBeginHour
+                ,dteEndHour
+                )
+                SELECT
+                    @txtDate
+                   ,t.intPlazo
+                   ,p.txtOperation
+                   ,t.txtTv
+                   ,p.dblRate
+                   ,p.dblAmount
+                   ,hb.dteHour
+                   ,he.dteHour
+                FROM
+                    #tmp_itblPonderado p
+                    INNER JOIN #tblTvPlazoCatalog t ON p.intTVPlazoId = t.intId
+                    INNER JOIN #tblHours hb ON p.intBegin = hb.intId
+                    INNER JOIN #tblHours he ON p.intEnd = he.intId
+		
+        IF @fMatFlag = 0 
+            BEGIN
+				
+				-- Drop table para pruebas
+				IF OBJECT_ID('tempdb..#tblMaxEndTime') IS NOT NULL
+						DROP TABLE #tblMaxEndTime
+
+                CREATE TABLE #tblMaxEndTime
+                    (
+                     txtTv CHAR(10)
+                    ,intPlazo INT
+                    ,dteTime DATETIME PRIMARY KEY ( txtTv, intPlazo )
+                    )
+				
+                INSERT  #tblMaxEndTime
+                        ( 
+                         txtTv
+                        ,intPlazo
+                        ,dteTime
+                        )
+                        SELECT DISTINCT
+                            p.txtTv
+                           ,p.intPlazoIni
+                           ,MAX(p.dteEndHour)
+                        FROM
+                            itblPonderadoRev p ( NOLOCK )
+                            INNER JOIN #tblTvPlazoCatalog t ON p.txtTV = t.txtTV
+                        WHERE
+                            p.dteDate = @txtDate
+                            AND p.dteBeginHour >= @dteBegin
+                            AND p.dteEndHour <= @dteEnd
+				  GROUP BY
+                        p.txtTv
+                       ,p.intPlazoIni
+				
+				-- De las horas maximas tomamos la que empezo despues
+				-- Drop table para pruebas
+				IF OBJECT_ID('tempdb..#tblMaxBeginTime') IS NOT NULL
+						DROP TABLE #tblMaxBeginTime
+
+                CREATE TABLE #tblMaxBeginTime
+                    (
+                     txtTv CHAR(10)
+                    ,intPlazo INT
+                    ,dteTime DATETIME PRIMARY KEY ( txtTv, intPlazo )
+                    )
+				
+                INSERT  #tblMaxBeginTime
+                        ( 
+                         txtTv
+                        ,intPlazo
+                        ,dteTime
+                        )
+                        SELECT DISTINCT
+                            p.txtTv
+                           ,p.intPlazoIni
+                           ,MAX(p.dteBeginHour)
+                        FROM
+                            #tblMaxEndTime t
+                            INNER JOIN itblPonderadoRev p ( NOLOCK ) ON t.txtTv = p.txtTv
+                                                              AND t.intPlazo = p.intPlazoIni
+                                                              AND t.dteTime = p.dteEndHour
+						WHERE
+                            p.dteDate = @txtDate
+                        GROUP BY
+							   p.txtTv
+                           ,p.intPlazoIni
+				
+				-- Si no obtenemos el ultimo nivel de las posturas
+                DELETE
+                    p
+                FROM
+                    itblPonderadoFinalRev p
+                    INNER JOIN #tblTvPlazoCatalog t ON p.txtTV = t.txtTV
+                WHERE
+                    dteDate = @txtDate
+                    AND fStatus = @fMatFlag
+		
+                IF @txtCategory = 'BND' 
+                    BEGIN
+                    
+						-- Si tenemos subasta tomamos el nivel
+                        INSERT  itblPonderadoFinalRev
+                                ( 
+                                 dteDate
+                                ,txtTv
+                                ,intPlazoIni
+                                ,intPlazoFin
+                                ,dblTasaFinal
+                                ,dblAmount
+                                ,fStatus
+                                )
+                                SELECT
+                                    r.dteDate
+                                   ,i.txtTv
+                                   ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo
+                                   ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo
+                                   ,r.dblPrice
+							       ,r.dblAmount
+                                   ,@fMatFlag
+                                FROM
+                                    tblBondsPricesRange AS r
+                                   ,tblIds AS i
+                                    INNER JOIN tblBonds AS b ON i.txtId1 = b.txtId1
+                                    INNER JOIN itblCategoryTvs t ( NOLOCK ) ON i.txtTV = t.txtTV
+                                WHERE
+                                    r.dteDate = @txtDate
+                                    AND t.txtCategory = 'BND'
+                                    AND r.txtType IN ( 'BDE' )
+                                    AND r.txtSubType = 'XA'
+                                    AND r.intBeg <= DATEDIFF(DAY,
+                                                             r.dteEfective,
+                                                             b.dteMaturity)
+                                    AND r.intEnd >= DATEDIFF(DAY,
+                                                             r.dteEfective,
+                                                             b.dteMaturity)
+                                    AND i.txtTv = 'LD'
+                                UNION
+                                SELECT
+              r.dteDate
+                                   ,i.txtTv
+                                   ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo
+                                   ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo
+                                   ,r.dblPrice
+							       ,r.dblAmount
+                                   ,@fMatFlag
+                                FROM
+                                    tblBondsPricesRange AS r
+                                   ,tblIds AS i
+                                    INNER JOIN tblBonds AS b ON i.txtId1 = b.txtId1
+                                    INNER JOIN itblCategoryTvs t ( NOLOCK ) ON i.txtTV = t.txtTV
+                                WHERE
+                                    r.dteDate = @txtDate
+                                    AND t.txtCategory = 'BND'
+                                    AND r.txtType IN ( 'BDI' )
+                                    AND r.txtSubType = 'SE'
+                                    AND r.intBeg <= DATEDIFF(DAY,
+                                                             r.dteEfective,
+                                                             b.dteMaturity)
+									AND r.intEnd >= DATEDIFF(DAY,
+                                                             r.dteEfective,
+															b.dteMaturity)
+                                    AND i.txtTv = 'LS'
+		
+			  END
+                ELSE 
+                    --IF @txtCategory = 'UDBI' 
+                        BEGIN
+
+                            INSERT  itblPonderadoFinalRev
+                                    ( 
+                                     dteDate
+                           ,txtTv
+									 ,intPlazoIni
+                                    ,intPlazoFin
+                                ,dblTasaFinal
+                                ,dblAmount
+                                    ,fStatus
+                                    )
+                                    SELECT
+                                        r.dteDate
+                                       ,i.txtTv
+                                       ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazoIni
+                                       ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazoFin
+                                       ,r.dblPrice AS dblTasaPond
+                                       ,r.dblAmount AS dblMonPond
+                                       ,@fMatFlag
+                                    FROM
+                                        tblBondsPricesRange AS r
+                                       ,tblIds AS i
+                                        INNER JOIN tblBonds AS b ( NOLOCK ) ON i.txtId1 = b.txtId1
+                                        INNER JOIN itblCategoryTvs t ( NOLOCK ) ON i.txtTV = t.txtTV
+                                       --,tblIRC AS ir
+                                    WHERE
+                                        r.dteDate = @txtDate
+                                        --AND ir.dteDate = @txtDate
+                                        --AND ir.txtIrc = 'UDI'
+                                        AND r.txtType = t.txtCategory
+                                        AND r.intBeg <= DATEDIFF(DAY,
+                                                              r.dteEfective,
+                                                              b.dteMaturity)
+                                        AND r.intEnd >= DATEDIFF(DAY,
+                                                              r.dteEfective,
+                                                              b.dteMaturity)
+                                        AND t.txtCategory = @txtCategory
+                                        AND i.txtTv = t.txtTv
+                                        
+                        END
+
+                INSERT  itblPonderadoFinalRev
+                        ( 
+                         dteDate
+                        ,txtTv
+                        ,intPlazoIni
+                        ,intPlazoFin
+                        ,dblTasaFinal
+                        ,dblAmount
+                        ,fStatus
+                        )
+                        SELECT
+                            p.dteDate
+                           ,p.txtTv
+                           ,p.intPlazoIni
+                           ,p.intPlazoIni
+                           ,AVG(p.dblRate)
+                           ,MIN(p.dblAmount)
+							,@fMatFlag
+                        FROM
+                            #tblMaxEndTime t
+                            INNER JOIN #tblMaxBeginTime b ON t.txtTv = b.txtTv
+                                                             AND t.intPlazo = b.intPlazo
+                            INNER JOIN itblPonderadoRev p ( NOLOCK ) ON t.txtTv = p.txtTv
+                                                              AND t.intPlazo = p.intPlazoIni
+                                                              AND t.dteTime = p.dteEndHour
+                                                              AND b.dteTime = p.dteBeginHour
+                            LEFT OUTER JOIN itblPonderadoFinalRev f ( NOLOCK ) ON t.txtTv = f.txtTv
+																AND t.intPlazo = f.intPlazoIni
+                                                              AND p.dteDate = f.dteDate
+															  AND f.fStatus = @fMatFlag
+                        WHERE
+                            p.dteDate = @txtDate
+                            AND f.txtTv IS NULL
+                 GROUP BY
+                            p.dteDate
+                           ,p.txtTv
+                           ,p.intPlazoIni
+
+            END
+	
+        ELSE 
+            BEGIN
+
+				-- Drop table para pruebas
+				IF OBJECT_ID('tempdb..#tblTimes') IS NOT NULL
+						DROP TABLE #tblTimes
+
+                CREATE TABLE #tblTimes
+                    (
+						 txtTv CHAR(3)
+						,intPlazo INT
+						,dteTime DATETIME
+						,txtId CHAR(3) PRIMARY KEY ( txtTv, intPlazo, txtId )
+                    )
+
+				-- Drop table para pruebas
+				IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL
+						DROP TABLE #itblPonderado
+
+                CREATE TABLE #itblPonderado
+                    (
+						 intId INT IDENTITY(1, 1)
+						,intPlazo INT
+						,txtOperation CHAR(10)
+						,txtTv CHAR(3)
+						,dblRate FLOAT
+						,dblAmount FLOAT
+						,dteBeginHour DATETIME
+						,dteEndHour DATETIME
+                    )
+				
+				-- Obtengo las horas de los extremos para rellenar
+                INSERT  #tblTimes
+                        ( 
+							 txtTv
+							,intPlazo
+							,dteTime
+							,txtId
+                        )
+                        SELECT DISTINCT
+                            p.txtTv
+                           ,p.intPlazoIni
+                           ,MIN(p.dteBeginHour)
+                           ,'MIN'
+                        FROM
+                            itblPonderadoRev p ( NOLOCK )
+                            INNER JOIN #tblTvPlazoCatalog t ON p.txtTV = t.txtTV
+                        WHERE
+                            p.dteBeginHour >= @dteBegin
+                            AND p.dteDate = @txtDate
+                        GROUP BY
+                            p.intPlazoIni
+                           ,p.txtTv
+                        UNION
+                        SELECT DISTINCT
+                            p.txtTv
+                           ,p.intPlazoIni
+                           ,MAX(p.dteEndHour)
+                           ,'MAX'
+                        FROM
+                            itblPonderadoRev p ( NOLOCK )
+                            INNER JOIN #tblTvPlazoCatalog t ON p.txtTV = t.txtTV
+                        WHERE
+                            p.dteBeginHour >= @dteBegin
+                            AND p.dteDate = @txtDate
+                        GROUP BY
+        p.intPlazoIni
+                           ,p.txtTv
+
+				-- Para posturas actualizo la hora de fin hasta el cierre
+                UPDATE
+                    i
+                SET 
+                    i.dteEndHour = @dteEnd
+                FROM
+                    itblPonderadoRev i ( NOLOCK )
+                    INNER JOIN #tblTimes t ON i.txtTv = t.txtTv
+                             AND i.intPlazoIni = t.intPlazo
+                    LEFT OUTER JOIN itblPonderadoRev ih ( NOLOCK ) ON i.intPlazoIni = ih.intPlazoIni
+                                                              AND i.txtTv = ih.txtTv
+                                                              AND i.dteEndHour = ih.dteEndHour
+                                                              AND i.txtOperation != ih.txtOperation
+                WHERE
+                    i.dteBeginHour >= @dteBegin
+                    AND i.dteEndHour = t.dteTime
+                    AND i.dteDate = @txtDate
+                    AND t.txtId = 'MAX'
+                    AND i.txtOperation NOT LIKE 'HECHO%'
+                    AND i.txtOperation != 'H'
+                    AND ih.intPlazoIni IS NULL
+		
+                INSERT  itblPonderadoRev
+                        ( 
+							 dteDate
+							,intPlazoIni
+							,intPlazoFin
+							,txtOperation
+							,txtTv
+							,dblRate
+							,dblAmount
+							,dteBeginHour
+							,dteEndHour
+						  )
+			
+						-- Inserto Banda_1
+                        SELECT
+                            @txtDate
+							,i.intPlazoIni
+                           ,i.intPlazoFin
+                           ,'BANDA_1'
+                           ,i.txtTv
+               ,i.dblTasaFinal
+                 ,i.dblAmount
+                           ,@dteBegin
+                           ,t.dteTime
+                FROM
+                            #tblTimes t
+                            INNER JOIN itblTasasRevLicuadasIG i ( NOLOCK ) ON t.txtTv = i.txtTv
+                                                              AND t.intPlazo = i.intPlazoIni
+                        WHERE
+                            i.fStatus = 0
+                            AND t.dteTime != @dteBegin
+                            AND t.txtId = 'MIN'
+                        UNION
+		
+						-- Inserto una postura dummy para rellenar ponderar el nivel hasta el cierre
+                        SELECT
+                            i.dteDate
+                           ,i.intPlazoIni
+                           ,i.intPlazoFin
+                           ,'POSTURA_H'
+                           ,i.txtTv
+                           ,i.dblRate
+                           ,i.dblAmount
+                           ,i.dteEndHour
+                           ,@dteEnd
+                        FROM
+                            itblPonderadoRev i ( NOLOCK )
+                            INNER JOIN #tblTimes t ON i.txtTv = t.txtTv
+                                                      AND i.intPlazoIni = t.intPlazo
+                        WHERE
+                            i.dteBeginHour >= @dteBegin
+                            AND i.dteEndHour = t.dteTime
+                            AND i.dteDate = @txtDate
+                            AND t.txtId = 'MAX'
+                            AND ( i.txtOperation LIKE 'HECHO%'
+                                  OR i.txtOperation = 'H'
+                                )
+                            AND i.dteEndHour != @dteEnd
+
+				-- Obtengo posturas ponderadas
+                INSERT  #itblCorroPonderado
+                        ( 
+							 txtOperationType
+							,txtTv
+							,intPlazo
+							,dblRate
+							,dblAmount
+                        )
+                        SELECT DISTINCT
+                            'P'
+                           ,p.txtTv
+                           ,p.intPlazoIni
+                           ,SUM(p.dblRate * p.dblAmount * DATEDIFF(s,
+                                        p.dteBeginHour,
+                                                              p.dteEndHour))
+                            / SUM(p.dblAmount * DATEDIFF(s, p.dteBeginHour,
+                                                         p.dteEndHour))
+                           ,SUM(p.dblAmount * DATEDIFF(s, p.dteBeginHour,
+                                         p.dteEndHour))
+                            / SUM(DATEDIFF(s, p.dteBeginHour, p.dteEndHour))
+                        FROM
+                            itblPonderadoRev p ( NOLOCK )
+                        INNER JOIN #tblTvPlazoCatalog t 
+                        ON 
+							p.txtTV = t.txtTV
+							AND p.intPlazoIni = t.intPlazo
+                        WHERE
+                            p.dteBeginHour >= @dteBegin
+                            AND p.txtOperation NOT LIKE 'HECHO%'
+                            AND p.txtOperation != 'H'
+                            AND p.dteDate = @txtDate
+                            ---AND DATEDIFF(s, p.dteBeginHour,p.dteEndHour) <> 0 --Marca
+                        GROUP BY
+                            p.intPlazoIni
+                           ,p.txtTv
+
+				-- Insertamos los Hechos
+                INSERT  #itblCorroPonderado
+                        ( 
+							 txtOperationType
+							,txtTv
+							,intPlazo
+							,dblRate
+							,dblAmount
+                        )
+                   SELECT
+                            'H'
+                           ,p.txtTv
+                           ,p.intPlazoIni
+                           ,p.dblRate
+						   ,p.dblAmount
+                        FROM
+                            itblPonderadoRev p ( NOLOCK )
+                        INNER JOIN #tblTvPlazoCatalog t 
+                        ON 
+							p.txtTV = t.txtTV
+							AND p.intPlazoIni = t.intPlazo
+                        WHERE
+                            p.dteBeginHour >= @dteBegin
+               AND ( p.txtOperation LIKE 'HECHO%'
+                                  OR p.txtOperation = 'H'
+                                )
+                            AND p.dteDate = @txtDate
+
+		
+				-- Insertamos la subasta
+                IF @txtCategory = 'BND' 
+                    BEGIN
+		
+						-- Si tenemos subasta tomamos el nivel
+                        INSERT  #itblCorroPonderado
+                                ( 
+									 txtOperationType
+									,txtTv
+									,intPlazo
+									,dblRate
+									,dblAmount
+                                )
+                                SELECT
+                                    'S'
+                                   ,i.txtTv
+                                   ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo
+                                   ,r.dblPrice
+                                   ,r.dblAmount
+                                FROM
+                                    tblBondsPricesRange AS r
+                                   ,tblIds AS i
+                                    INNER JOIN tblBonds AS b ON i.txtId1 = b.txtId1
+                                    INNER JOIN itblCategoryTvs t ( NOLOCK ) ON i.txtTV = t.txtTV
+                                WHERE
+                                    r.dteDate = @txtDate
+                                    AND t.txtCategory = @txtCategory
+                                    AND r.txtType IN ( 'BDE' )
+                                    AND r.txtSubType = 'XA'
+                                    AND r.intBeg <= DATEDIFF(DAY,
+                                                             r.dteEfective,
+                                                             b.dteMaturity)
+                                    AND r.intEnd >= DATEDIFF(DAY,
+                                                             r.dteEfective,
+                                                             b.dteMaturity)
+                                    AND i.txtTv = 'LD'
+						
+						END
+						ELSE IF @txtCategory = 'BDS' 
+						BEGIN
+						
+                                SELECT
+					               'S'
+                                   ,i.txtTv
+                                   ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo
+									,r.dblPrice
+                                   ,r.dblAmount
+                                FROM
+                                    tblBondsPricesRange AS r
+                                   ,tblIds AS i
+                                    INNER JOIN tblBonds AS b ON i.txtId1 = b.txtId1
+                                    INNER JOIN itblCategoryTvs t ( NOLOCK ) ON i.txtTV = t.txtTV
+                                WHERE
+                                    r.dteDate = @txtDate
+                                    AND t.txtCategory = @txtCategory
+                                    AND r.txtType = 'BDI'
+                                    AND r.txtSubType LIKE 'SE'
+                                    AND r.intBeg <= DATEDIFF(DAY,
+                                                             r.dteEfective,
+                                                             b.dteMaturity)
+                                    AND r.intEnd >= DATEDIFF(DAY,
+                                                             r.dteEfective,
+															   b.dteMaturity)
+                                    AND i.txtTv LIKE 'LS'
+		
+						END
+                ELSE 
+                        BEGIN
+		
+		
+								 INSERT  #itblCorroPonderado
+                                    ( 
+										 txtOperationType
+										,txtTv
+										,intPlazo
+										,dblRate
+										,dblAmount
+                                    )
+                                    SELECT
+										'S'
+		                               ,i.txtTv
+                                       ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo
+                                       ,r.dblPrice AS dblTasaPond
+                                       ,r.dblAmount AS dblMonPond
+                                    FROM
+                                        tblBondsPricesRange AS r
+                                       ,tblIds AS i
+                                        INNER JOIN itblCategoryTvs t ( NOLOCK ) ON i.txtTV = t.txtTV
+                                        INNER JOIN tblBonds AS b ( NOLOCK ) ON i.txtId1 = b.txtId1
+                                       --,tblIRC AS ir
+                                    WHERE
+                                        r.dteDate = @txtDate
+                                        --AND ir.dteDate = @txtDate
+                                        --AND ir.txtIrc = 'UDI'
+                                        AND r.txtType = t.txtCategory
+                                        AND r.intBeg <= DATEDIFF(DAY,
+                                                              r.dteEfective,
+                                                              b.dteMaturity)
+                                        AND r.intEnd >= DATEDIFF(DAY,
+                                                              r.dteEfective,
+                                                              b.dteMaturity)
+                                        AND t.txtCategory = @txtCategory
+                                        AND i.txtTv = t.txtTv
+
+                        END
+
+                DELETE
+                    p
+                FROM
+                    itblPonderadoFinalRev p
+                    INNER JOIN #tblTvPlazoCatalog t ON p.txtTV = t.txtTV
+                WHERE
+                    p.dteDate = @txtDate
+                    AND p.fStatus = @fMatFlag
+		
+                INSERT  itblPonderadoFinalRev
+                        ( 
+							 dteDate
+							,txtTv
+							,intPlazoIni
+							,intPlazoFin
+							,dblTasaFinal
+							,dblAmount
+							,fStatus
+                        )
+                        SELECT DISTINCT
+                            @txtDate
+              ,txtTv
+                           ,intPlazo
+                           ,intPlazo
+                           ,SUM(dblRate * dblAmount) / SUM(dblAmount)
+                           ,0
+                           ,@fMatFlag
+                        FROM
+                            #itblCorroPonderado
+                        GROUP BY
+                            txtTv
+                           ,intPlazo
+                        ORDER BY
+                            intPlazo
+			
+				-- Ajusto el nivel de los nodos con subasta
+                INSERT  #itblCorroPonderadoSubastas
+                        ( 
+							 txtTv
+							,intPlazo
+							,dblRate
+                        )
+                        SELECT
+                            s.txtTv
+                           ,s.intPlazo
+                           ,CASE WHEN ISNULL(SUM(h.dblAmount), 0) >= s.dblAmount
+                                      * .1
+                                 THEN ( SUM(h.dblRate * h.dblAmount)
+                                        / SUM(h.dblAmount) + s.dblRate ) / 2
+                                 ELSE s.dblRate
+                            END
+                        FROM
+                            #itblCorroPonderado s
+                            LEFT OUTER JOIN itblPonderadoRev h ( NOLOCK ) ON s.txtTv = h.txtTv
+															AND s.intPlazo = h.intPlazoIni
+															AND h.txtOperation LIKE 'H%'
+                              AND h.dteBeginHour >= '11:30'
+															AND h.dteDate = @txtDate
+                        WHERE
+                            s.txtOperationType = 'S'
+                        GROUP BY
+                            s.txtTv
+                           ,s.intPlazo
+              ,s.dblAmount
+                           ,s.dblRate
+			
+                UPDATE
+                    p
+                SET 
+                    p.dblTasaFinal = s.dblRate
+        FROM
+                #itblCorroPonderadoSubastas s
+                    INNER JOIN itblPonderadoFinalRev p ON s.txtTv = p.txtTv
+															AND s.intPlazo = p.intPlazoIni
+                WHERE
+                    p.dteDate = @txtDate
+                    AND p.fStatus = @fMatFlag
+
+            END
+
+        SET ANSI_WARNINGS ON	
+        SET NOCOUNT OFF
+
+END
+
+-- ======================================================
+--	Author:			Abraham Alamilla
+--	Date:			
+--	Description:	
+-- ======================================================
+CREATE PROCEDURE [dbo].[usp_LicuadoraRevisables];3
+	@txtDate char(10), 
+	@fStatus bit
+AS
+BEGIN
+	-- ======================================================================
+	-- NO OPERADOS
+	-- ======================================================================
+	SET NOCOUNT ON
+	--declare	@txtDate char(10) = '20130903', @fStatus bit = 0
+
+	DECLARE	@txtId1 AS CHAR(11)
+			,@txtTv AS CHAR(11)
+			,@intSerial AS INT
+			,@intSerialZero AS INT
+			,@intPlazoIni  AS INT	
+			,@intPlazoFin  AS INT	
+			,@dblTasaFinal AS FLOAT
+			,@dblAnterior AS FLOAT
+			,@intCount int
+			,@intCountWhile int = 1
+
+	DELETE
+	FROM	itblTasasRevLicuadasIG
+	WHERE	fStatus = @fStatus
+
+	if OBJECT_ID('tempdb..#tblPlazosDisponibles') is not null
+		drop table #tblPlazosDisponibles
+
+	create table #tblPlazosDisponibles
+	(
+		intPlazoIni int
+		,intPlazoFin int
+		,txtTv char(2)
+		,intSerial int
+	)
+
+	insert into #tblPlazosDisponibles
+	SELECT
+		DATEDIFF(DAY,@txtDate,b.dteMaturity) AS intPlazoIni,
+		DATEDIFF(DAY,@txtDate,b.dteMaturity) AS intPlazoFin,
+		i.txtTv,
+		n.intSerialYTM AS intSerial
+	FROM 	itblNodesYTMCatalog AS n 
+		INNER JOIN tblBonds AS b ON  n.txtId1 = b.txtId1
+		INNER JOIN tblIds AS i ON  b.txtId1 = i.txtId1
+								-- TODO: Cambiar fecha por fSatatus
+								AND dteMaturity >= @txtDate
+								--AND fStatus = 1
+								AND i.txtTv = 'LD'
+
+	UNION
+
+	SELECT
+		DATEDIFF(DAY,@txtDate,b.dteMaturity) AS intPlazoIni,
+		DATEDIFF(DAY,@txtDate,b.dteMaturity) AS intPlazoFin,
+		i.txtTv,
+		n.intSerialYTM AS intSerial
+	FROM itblNodesYTMCatalog AS n 
+		INNER JOIN tblBonds AS b ON  n.txtId1 = b.txtId1
+		INNER JOIN tblIds AS i ON  b.txtId1 = i.txtId1
+								-- TODO: Cambiar fecha por fSatatus
+								AND dteMaturity >= @txtDate
+								--AND fStatus = 1
+								AND i.txtTv IN('IT','IP','IS','IM','IQ')
+								AND N.txtSubCategory IN ('BPS','BPT','IPB','BGA','BGT')
+
+	--UNION
+
+	--SELECT
+	--	z.intBeg AS intPlazoIni,
+	--	case when z.intEnd is null then
+	--		z.intBeg
+	--	else
+	--		z.intEnd 
+	--	end	AS intPlazoFin,
+	--	c.txtTv,
+	--	z.intSerialZero AS intSerial
+	--FROM itblNodesZeroCatalog AS z 
+	--	INNER JOIN itblCategoryTvs AS c ON z.txtSubCategory = c.txtSubCategory
+	--WHERE	z.txtSubCategory IN ('BDS','BREM')
+	--		and dteBeg <= @txtDate
+	--		--AND     z.fStatus = 1
+	--ORDER BY
+	--	intPlazoIni,
+	--	intPlazoFin
+
+	if OBJECT_ID('tempdb..#tblNulos') is not null
+		drop table #tblNulos
+
+	create table #tblNulos
+	(
+		txtTV char(2)
+		,intSerial int
+		,intPlazoIni int
+		,intPlazoFin int
+		,dblTasaFinal float
+	)
+
+	insert into #tblNulos
+	SELECT	d.txtTv,
+		d.intSerial,
+		d.intPlazoIni,
+		d.intPlazoFin,
+		p.dblTasaFinal
+	FROM #tblPlazosDisponibles AS d
+		LEFT OUTER JOIN itblPonderadoFinalRev AS p
+		ON 	p.intPlazoIni = d.intPlazoIni
+		AND	p.intPlazoFin = d.intPlazoFin
+		AND	p.txtTv = d.txtTv
+		AND	p.dteDate = @txtDate
+		AND	p.fStatus = @fStatus
+	ORDER BY
+		p.intPlazoIni
+
+	----
+	--- Hacer cursor para sacar los que no fueron operados
+	if OBJECT_ID('tempdb..#tblData') is not null
+		drop table #tblData
+
+	create table #tblData
+	(
+		intId int identity
+		,txtTV char(2)
+		,intSerial int
+		,intPlazoIni int
+		,intPlazoFin int
+		,dblTasaFinal float
+	)
+
+	insert into #tblData
+	SELECT	txtTv,
+		intSerial,
+		intPlazoIni,
+		intPlazoFin,
+		dblTasaFinal
+	FROM	#tblNulos
+	WHERE	dblTasaFinal IS NULL
+
+	select @intCount = COUNT(*)
+	from #tblData
+
+	while @intCount >= @intCountWhile
+		begin
+
+			select 
+				@txtTv = txtTV,
+				@intSerial = intSerial,
+				@intPlazoIni = intPlazoIni,
+				@intPlazoFin = intPlazoFin,
+				@dblTasaFinal = dblTasaFinal
+			from #tblData d
+			where intId = @intCountWhile
+
+		IF @fStatus = 0
+		BEGIN
+
+			IF @txtTv IN('IT','IP','IS','LD','IM','IQ','LS','XA')
+			BEGIN
+				-- saca la ultima tasa nodo de un plazo determinado
+				select 
+						top 1 @dblAnterior= levels.dblValue
+				from itblNodesYTMCatalog cat
+						inner join itblNodesYTMLevels levels on cat.intSerialYTM = levels.intSerialYTM
+				where cat.intSerialYTM = @intSerial 
+						and levels.dteDate < @txtDate
+				group by  
+						levels.dteDate
+						, levels.dteTime
+						, levels.dblValue
+				having levels.dteTime = MAX(levels.dteTime) 
+						and levels.dteDate = MAX(levels.dteDate)
+				order by levels.dteDate desc
+						,levels.dteTime desc
+			END
+			ELSE
+			BEGIN
+			
+				select 
+						top 1 @dblAnterior= levels.dblValue
+				from itblNodesZeroCatalog cat
+						inner join itblNodesZeroLevels levels on cat.intSerialZero = levels.intSerialZero
+				where cat.intSerialZero = @intSerial 
+						and levels.dteDate < @txtDate
+				group by  
+						levels.dteDate
+						, levels.dteTime
+						, levels.dblValue
+				having levels.dteTime = MAX(levels.dteTime) 
+						and levels.dteDate = MAX(levels.dteDate)
+				order by levels.dteDate desc
+						,levels.dteTime desc
+			END
+
+		END
+		ELSE
+		BEGIN
+
+			SELECT 	@dblAnterior = dblTasaFinal
+			FROM	itblTasasRevLicuadasIG
+			WHERE	intPlazoIni = @intPlazoIni
+					AND	intPlazoFin = @intPlazoFin
+					AND	txtTv = @txtTv
+					AND	fStatus = 0
+		END
+
+		IF @txtTv IN('IT','IP','IS','LD','IM','IQ')
+		BEGIN
+			IF	(@intPlazoIni = 1   AND   @dblAnterior is null)
+				set @dblAnterior ='0.00'
+			
+
+			INSERT	itblTasasRevLicuadasIG
+			SELECT	
+				@txtTv
+				,@intSerial
+				,NULL
+				,@intPlazoIni
+				,@intPlazoFin
+				,@dblAnterior
+				,50000000
+				,@fStatus
+
+		END
+		ELSE
+		BEGIN
+			INSERT itblTasasRevLicuadasIG
+			SELECT	
+				@txtTv,
+				NULL,
+				@intSerial,
+				@intPlazoIni,
+				@intPlazoFin,
+				@dblAnterior,
+				50000000,
+				@fStatus
+
+		END
+	
+		set @intCountWhile += 1
+	END
+	
+	INSERT 	itblTasasRevLicuadasIG
+	SELECT	d.txtTv,
+		CASE WHEN p.txtTv IN('IT','IP','IS','LD','IM','IQ') THEN 
+			d.intSerial
+		ELSE
+			NULL
+		END AS intSerialYTM,
+		CASE WHEN p.txtTv IN('IT','IP','IS','LD','IM','IQ') THEN 
+			NULL
+		ELSE
+			d.intSerial
+		END AS intSerialZero,
+		p.intPlazoIni,
+		p.intPlazoFin,
+		p.dblTasaFinal,
+		p.dblAmount,
+		@fStatus
+	FROM 	itblPonderadoFinalRev AS p 
+			INNER JOIN #tblPlazosDisponibles AS d ON p.intPlazoIni = d.intPlazoIni
+													AND	p.intPlazoFin = d.intPlazoFin
+													AND	p.txtTv = d.txtTv
+													AND	p.dteDate = @txtDate
+	WHERE	p.fStatus = @fStatus
+	ORDER BY
+		p.intPlazoIni
+
+	IF @fStatus = 1
+	BEGIN
+	
+		-- Ajusto los no operados con cambio de rango		
+		EXEC usp_LicuadoraRevisables;4 @txtDate
+	
+	END
+END
+
+
+
+-- =====================================================================
+--	Author:			Abraham Alamilla
+--	Date:			
+--	Description:	Actualiza tasas de instrumentos en rango no operados
+-- =====================================================================
+CREATE PROCEDURE [dbo].[usp_LicuadoraRevisables];4
+	@txtDate char(10)
+AS
+BEGIN
+
+	CREATE TABLE #tblRanges(
+		intId INT,
+		txtTv CHAR(2),
+		txtPosition CHAR(1)
+			PRIMARY KEY(intId))
+
+	CREATE TABLE #tblMaxRangeNodes(
+		intId INT, 
+		txtTv CHAR(2), 
+		intBeg INT
+			PRIMARY KEY(intId))
+
+	CREATE TABLE #tblRates(
+		txtTv CHAR(3),
+		intTerm INT,
+		dblRate FLOAT,
+		txtType CHAR(1)
+			PRIMARY KEY(txtTv, intTerm))
+	
+	CREATE TABLE #tblPostures(
+		txtTv CHAR(3),
+		intTerm INT,
+		txtOperation CHAR(6),
+		intDuration INT,
+		dblAmount FLOAT,
+		dblRate FLOAT
+			PRIMARY KEY(txtTv,intTerm,txtOperation, intDuration, dblAmount, dblRate))
+
+	CREATE TABLE #tblBestPostures(
+		txtTv CHAR(3),
+		intTerm INT,
+		txtOperation CHAR(6),
+		dblRate FLOAT
+			PRIMARY KEY(txtTv,intTerm,txtOperation))
+		
+	CREATE TABLE #tblBestDuration(
+		txtTv CHAR(3),
+		intTerm INT,
+		txtOperation CHAR(6),
+		dblRate FLOAT,
+		intDuration INT
+			PRIMARY KEY(txtTv,intTerm,txtOperation))
+		
+	CREATE TABLE #tblBestAmount(
+		txtTv CHAR(3),
+		intTerm INT,
+		txtOperation CHAR(6),
+		dblRate FLOAT,
+		intDuration INT,
+		dblAmount INT
+			PRIMARY KEY(txtTv,intTerm,txtOperation))
+			
+	INSERT #tblRanges(
+		intId,
+		txtTv,
+		txtPosition)
+		
+	SELECT 
+		r.intId,
+		r.txtTV,
+		CASE 
+			WHEN l.intId IS NULL THEN 'L'
+			ELSE ''
+		END 
+	FROM itblRangeNodesRevi r
+	LEFT OUTER JOIN itblRangeNodesRevi l
+	ON
+		r.txtTV = l.txtTV
+		AND r.intBeg = l.intEnd + 1
+	ORDER BY
+		r.intBeg
+
+	-- Obtengo la tasa del nodo anterior a los instrumentos que no tuvieron
+	-- operaciones y que cambian de rango
+	--declare '20130924' varchar(10) = '20131203'
+
+	INSERT #tblMaxRangeNodes(
+		intId, 
+		txtTv, 
+		intBeg)
+		 
+	SELECT
+		intId
+		,trl.txtTv
+		,MAX(intPlazoIni)
+	FROM itblTasasRevLicuadasIG trl
+	INNER JOIN itblRangeNodesRevi rnr 
+	ON 
+		trl.txtTv = rnr.txtTv
+		AND trl.intPlazoIni + DATEDIFF(DAY,dbo.fun_nextTradingDate(@txtDate,-1,'MX'),@txtDate) 
+			BETWEEN rnr.intBeg AND rnr.intEnd
+		AND trl.intPlazoIni 
+			BETWEEN rnr.intBeg AND rnr.intEnd
+		GROUP BY 
+			rnr.intId,
+			trl.txtTv		
+
+	INSERT #tblRates(
+		txtTv,
+		intTerm,
+		dblRate,
+		txtType)
+		
+	SELECT 
+		trl.txtTv,
+		trl.intPlazoIni,
+		CASE
+			WHEN trlLast.dblTasaFinal IS NOT NULL THEN trlLast.dblTasaFinal
+			WHEN r.txtPosition = 'L' AND trlLast.dblTasaFinal IS NULL THEN 0
+			ELSE trl.dblTasaFinal
+		END,
+		CASE
+			WHEN trlLast.dblTasaFinal IS NOT NULL THEN 'A'
+			WHEN r.txtPosition = 'L' AND trlLast.dblTasaFinal IS NULL THEN 'L'
+			ELSE 'C'
+		END
+	FROM tblBonds b
+	INNER JOIN tblIds ids 
+	ON 
+		b.txtId1 = ids.txtID1
+	INNER JOIN itblTasasRevLicuadasIG trl 
+	ON 
+		DATEADD(DAY,intPlazoIni,@txtDate) = dteMaturity
+		AND trl.txtTV = ids.txtTV
+	LEFT OUTER JOIN itblPonderadoFinalRev pfr 
+	ON 
+		pfr.txtTv = trl.txtTv
+		AND trl.intPlazoIni = pfr.intPlazoIni
+		AND pfr.fStatus = 1
+		AND pfr.dteDate = @txtDate
+	INNER JOIN itblRangeNodesRevi rnrAct 
+	ON 
+		trl.txtTv = rnrAct.txtTV
+		AND trl.intPlazoIni 
+			BETWEEN rnrAct.intBeg AND rnrAct.intEnd
+	INNER JOIN itblRangeNodesRevi rnrLast 
+	ON 
+		trl.txtTv = rnrLast.txtTV
+		AND DATEDIFF(DAY,dbo.fun_NextTradingDate(@txtDate,-1,'MX'),dteMaturity) 
+			BETWEEN rnrLast.intBeg AND rnrLast.intEnd
+	LEFT OUTER JOIN #tblMaxRangeNodes mrn 
+	ON 
+		rnrAct.intId = mrn.intId
+		AND trl.txtTv = mrn.txtTv
+	LEFT OUTER JOIN itblTasasRevLicuadasIG trlLast 
+	ON 
+		mrn.txtTv = trlLast.txtTv
+		AND mrn.intBeg = trlLast.intPlazoIni
+		AND trl.fStatus = trlLast.fStatus
+	INNER JOIN #tblRanges r
+	ON
+		rnrAct.txtTv = r.txtTv
+		AND rnrAct.intId = r.intId
+	WHERE
+		pfr.txtTv IS NULL
+		AND trl.txtTv = rnrAct.txtTV
+		AND trl.fStatus = 1
+		AND rnrAct.intId != rnrLast.intId
+		
+	INSERT #tblPostures(
+		txtTv,
+		intTerm,
+		txtOperation,
+		intDuration,
+		dblAmount,
+		dblRate)
+		
+	SELECT
+		m.txtTv,
+		m.intPlazoFin,
+		m.txtOperation,
+		DATEDIFF(MINUTE,m.dteBeginHour,m.dteEndHour),
+		m.dblAmount,
+		m.dblRate
+	FROM #tblRates r
+	INNER JOIN itblMarketPositionsRevi m
+	ON
+		r.txtTv = m.txtTv
+		AND r.intTerm = m.intPlazoIni
+	WHERE
+		m.dteDate = @txtDate
+		AND r.txtType = 'A'
+		AND m.txtLiquidation = '48'
+		AND DATEDIFF(SECOND,m.dteBeginHour,m.dteEndHour) > 59
+		AND m.dblAmount > 10000000
+		AND m.dblRate < 1
+		AND 1 = (
+			CASE
+				WHEN m.txtOperation = 'VENTA' AND r.dblRate < m.dblRate THEN 1
+				WHEN m.txtOperation = 'COMPRA' AND r.dblRate > m.dblRate THEN 1
+				ELSE 0
+			END)			
+
+	-- Obtengo las mejores posturas
+		
+	INSERT #tblBestPostures(
+		txtTv,
+		intTerm,
+		txtOperation,
+		dblRate)
+	
+	SELECT 
+		txtTv,
+		intTerm,
+		txtOperation,
+		CASE
+			WHEN txtOperation = 'COMPRA' THEN MIN(dblRate)
+			WHEN txtOperation = 'VENTA' THEN MAX(dblRate)
+		END	
+	FROM #tblPostures p
+	GROUP BY
+		txtTv,
+		intTerm,
+		txtOperation
+			
+	
+	INSERT #tblBestDuration(
+		txtTv,
+		intTerm,
+		txtOperation,
+		dblRate,
+		intDuration)
+		
+	SELECT	
+		b.txtTv,
+		b.intTerm,
+		b.txtOperation,
+		b.dblRate,
+		MAX(p.intDuration)
+	FROM #tblBestPostures b
+	INNER JOIN #tblPostures p
+	ON
+		b.intTerm = p.intTerm
+		AND b.txtOperation = p.txtOperation
+		AND b.dblRate = p.dblRate
+	GROUP BY
+		b.txtTv,
+		b.intTerm,
+		b.txtOperation,
+		b.dblRate	
+	
+	INSERT #tblBestAmount(
+		txtTv,
+		intTerm,
+		txtOperation,
+		dblRate,
+		intDuration,
+		dblAmount)
+	
+	SELECT 
+		d.txtTv,
+		d.intTerm,
+		d.txtOperation,
+		d.dblRate,
+		d.intDuration,
+		MAX(p.dblAmount)
+	FROM #tblBestDuration d
+	INNER JOIN #tblPostures p
+	ON
+		d.txtTv = p.txtTv
+		AND d.intTerm = p.intTerm
+		AND d.txtOperation = p.txtOperation
+		AND d.dblRate = p.dblRate
+		AND d.intDuration = p.intDuration
+	GROUP BY
+		d.txtTv,
+		d.intTerm,
+		d.txtOperation,
+		d.dblRate,
+		d.intDuration
+		
+	-- Elimino el de menor monto
+	
+	DELETE b
+	FROM #tblBestAmount a
+	INNER JOIN #tblBestAmount b
+	ON
+		a.txtTv = b.txtTv
+		AND a.intTerm = b.intTerm
+		AND a.txtOperation != b.txtOperation
+		AND a.dblAmount > b.dblAmount
+
+	-- Elimino el de menor duracion
+
+	DELETE b
+	FROM #tblBestAmount a
+	INNER JOIN #tblBestAmount b
+	ON
+		a.txtTv = b.txtTv
+		AND a.intTerm = b.intTerm
+		AND a.txtOperation != b.txtOperation
+		AND a.intDuration > b.intDuration
+	
+	-- Ahora si tomo la tasa
+	
+	UPDATE r
+	SET 
+		r.dblRate = a.dblRate
+	FROM #tblRates r
+	INNER JOIN #tblBestAmount a
+	ON
+		r.txtTv = a.txtTv
+		AND r.intTerm = a.intTerm
+	WHERE
+		r.txtType = 'A'
+		
+	UPDATE a
+	SET 
+		a.dblTasaFinal = r.dblRate
+	FROM #tblRates r
+	INNER JOIN itblTasasRevLicuadasIG a
+	ON
+		r.txtTv = a.txtTv
+		AND r.intTerm = a.intPlazoIni
+	WHERE
+		a.fStatus = 1
+		AND r.txtType != 'C'
+		
+END
+
+CREATE PROCEDURE [dbo].[usp_LicuadoraRevisables];5
+	@txtDate AS VARCHAR(10)
+
+	/*
+	DEFINICION:	Carga en la IG licuadora de REVISABLES
+	CREADOR:	Junior
+	FECHA:		20080205
+	MODIFICO:	PONATE
+	FECHA:		20120425
+	DESCRIPCION:Modifico para considerar ipabonos
+	*/
+
+AS 
+BEGIN
+
+	SET NOCOUNT ON
+
+	-- Insertamos la Base
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'BDS'
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'BLT'
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'BND'
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'BPS'
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'BPT'
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'BRE'
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'IPB'
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'BGA'
+	EXEC spi_LicuadoraInsertaBase;1 @txtDate,'BGT'
+
+
+	DECLARE	@intSerial AS INT
+	DECLARE	@dblTasaFinal AS FLOAT
+	DECLARE	@dblSpread AS FLOAT
+	DECLARE	@txtTv AS VARCHAR(10)
+	DECLARE @intSecond AS INT
+	DECLARE	@dteDateTime AS DATETIME 
+	
+	DECLARE IG CURSOR FOR
+	SELECT 	i.intSerialYTM,
+		STR(i.dblTasaFinal , 10, 4) AS dblTasaFinal,
+		STR(l.dblSpread , 10, 4) AS dblSpread,
+		i.txtTv
+	FROM	itblTasasRevLicuadasIG AS i INNER JOIN itblNodesYTMLevels AS l
+		ON i.intSerialYTM = l.intSerialYTM
+	WHERE	fStatus = 1
+	AND	l.dteDate = @txtDate
+	AND	l.dteTime = (
+			select MAX(dteTime) 
+			from itblNodesYTMLevels
+			where 
+				dteDate = l.dteDate 
+				and intSerialYTM = l.intSerialYTM)
+
+	UNION
+
+	SELECT 	i.intSerialZero,
+		STR(i.dblTasaFinal , 10, 4) AS dblTasaFinal,
+		STR(l.dblSpread , 10, 4) AS dblSpread,
+		i.txtTv
+	FROM	itblTasasRevLicuadasIG AS i INNER JOIN itblNodesZeroLevels AS l
+		ON i.intSerialZero = l.intSerialZero
+	WHERE	fStatus = 1
+	AND	l.dteDate = @txtDate
+	AND	l.dteTime = (
+			select MAX(dteTime) 
+			from itblNodesZeroLevels
+			where 
+				dteDate = l.dteDate 
+				and intSerialZero = l.intSerialZero)
+
+	
+	OPEN 	IG
+	FETCH NEXT FROM IG
+	INTO	@intSerial,
+		@dblTasaFinal,
+		@dblSpread,
+		@txtTv
+
+	SET @intSecond  = 0
+	
+	WHILE 	@@FETCH_STATUS = 0
+	BEGIN
+
+		SET @intSecond  = @intSecond + 1
+		
+		SET 	@dteDateTime = GETDATE()
+		SET 	@dteDateTime = DATEADD(SECOND,@intSecond ,DATEADD(DAY,DATEDIFF(DAY,@dteDateTime,'1900-01-01 00:00:00.000'),@dteDateTime))
+
+		IF @txtTv IN('IT','IP','IS','LD','IM','IQ')
+		BEGIN
+			INSERT 	itblNodesYTMLevels
+			SELECT	@txtDate,
+				@intSerial,
+				@dblTasaFinal,
+				@dblSpread,
+				NULL,
+				NULL,
+				@dteDateTime
+		END
+		ELSE
+		BEGIN
+			INSERT 	itblNodesZeroLevels
+			SELECT	@txtDate,
+				@intSerial,
+				@dblTasaFinal,
+				@dblSpread,
+				NULL,
+				NULL,
+				@dteDateTime
+		END
+
+		FETCH NEXT FROM IG
+		INTO	@intSerial,
+			@dblTasaFinal,
+			@dblSpread,
+			@txtTv
+	
+	END
+	CLOSE IG
+	DEALLOCATE IG	
+	
+
+
+	SET NOCOUNT OFF
+
+END
+
