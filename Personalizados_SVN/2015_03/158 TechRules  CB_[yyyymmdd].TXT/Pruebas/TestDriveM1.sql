@@ -3,6 +3,8 @@
 ----where txtProceso ='TECHRULES_VEC_BENCHS'
 
 
+
+--select * into dbo.Bkp_tmp_tblUnifiedPricesReport_20150331 from tmp_tblUnifiedPricesReport
 --select * from tblactivex where txtvalor like '%CB%'
 --and txtpropiedad like '%FileName%'
 
@@ -23,7 +25,7 @@
 ----------------------------------------------------------      
 */    
  --CREATE   PROCEDURE dbo.usp_productos_TECHRULES;1 --'20141002'         
- declare @txtDate AS DATETIME = '20150330'     
+ declare @txtDate AS DATETIME = '20150401'     
  --AS         
  --BEGIN        
       
@@ -66,7 +68,9 @@
   [txtCUR] [varchar](3) NULL,      
   [txtTIT] [varchar](400) NULL,      
   [txtCOUNTRY] [varchar](400) NULL,      
-  [txtSEC] [varchar](400) NULL      
+  [txtSEC] [varchar](400) NULL,
+  [txtBur][Varchar](10)    NULL,
+ [txtid2][Varchar](12) null       
   PRIMARY KEY CLUSTERED (      
    txtLiquidation,txtId1      
    )      
@@ -197,15 +201,96 @@
   [txtFACTOR_AJUSTE][CHAR](1) NULL,      
   [txtESTATUS_INSTRUMENTO][CHAR](1) NULL,      
   [txtNEW_VALUE][VARCHAR](19) NULL,       
-  [txtOLD_VALUE][VARCHAR](19) NULL,       
+  [txtOLD_VALUE][VARCHAR](19) NULL,        
   [txtOLDTv][VARCHAR](10),      
   [txtOLDEmisora][VARCHAR](10),      
-  [txtOLDSerie][VARCHAR](10)      
+  [txtOLDSerie][VARCHAR](10),      
+  [txtNem][VARCHAR](50) null ,
+  [txtBur][Varchar](10) null ,
+  [txtid2][Varchar](12) null   
   PRIMARY KEY CLUSTERED (      
    txtId1      
    )      
  )      
-      
+
+
+/*Agregamos codigo para calcular Anexo 4 de Layout   -OACEVES*/
+
+
+/*Creamos tabla con Universo*/
+	Declare @tblIndexesPortfolios_Now table (txtIndex	char(7),dteDate datetime,txtId1	char(11),dblCount	 decimal(20,14))
+/*Llenamos Universo*/
+	insert into @tblIndexesPortfolios_Now
+		select txtIndex,dteDate,txtId1,dblCount from dbo.tblIndexesPortfolios 
+			where txtIndex 
+			 in ('CETETRAC', 'IMC30', 'IPCCOMP', 'MEXBOL', 'M10TRAC', 'M5TRAC', 'UDITRAC' , 'UMSTRAC')
+			 and  dtedate =@txtDate
+
+			 /*Variable con suma de universo*/
+			 declare @txtxUniverseCount float = (select  SUM(dblCount)  from @tblIndexesPortfolios_Now)
+			 
+			 /*Actualizamos Campo dblCount  = dblCount / @txtxUniverseCount*/
+			 
+			 update @tblIndexesPortfolios_Now
+			 set dblCount =dblCount /@txtxUniverseCount
+			 
+			-- select * from @tblIndexesPortfolios_Now
+			 
+			 
+
+			 
+	/*Declaramos tabla para contener resultados*/
+		DECLARE @tblProduct_Indexes TABLE
+			(
+				txtId1 varchar(12),
+				txtProductIndex varchar (100),
+				txtPesoIndex varchar (100)
+			)
+			
+		Declare @txtId1 varchar(12)
+/*Cursor para obtener Nombres de Indices (CODIGO_PRODUCTO_INDICE) y Precios de los Indices (PESO_INDICE)*/
+		Declare IndexesPortfolios cursor GLOBAL
+			 FOR
+			  SELECT distinct txtid1 from @tblIndexesPortfolios_Now
+		      
+					Open IndexesPortfolios
+						fetch IndexesPortfolios into @txtId1
+							while(@@fetch_status=0)
+								begin 
+
+									DECLARE @str VARCHAR(100); 
+									DECLARE @str2 VARCHAR(100)
+									
+									/*Conseguimos Codigos*/
+									SELECT @str = COALESCE(@str +  '; ', '')+ RTRIM(LTRIM(txtIndex))    from @tblIndexesPortfolios_Now
+										  where  txtId1 = @txtId1
+									      
+									/*Conseguimos Precios*/
+										  SELECT @str2 = COALESCE(@str2 +  '; ', '')   +convert(varchar(100),dblCount)  from @tblIndexesPortfolios_Now
+										  where txtId1 = @txtId1
+										  
+								  /*Guardamos los datos*/
+										  Insert into @tblProduct_Indexes 
+											Select @txtId1,@str,@str2 
+											
+											
+											set @str = null
+											set @str2 = null
+											
+												fetch  IndexesPortfolios into @txtId1
+								end 
+										
+					close IndexesPortfolios
+		deallocate IndexesPortfolios
+/*Se encuentra todo cargado en @tblProduct_Indexes*/
+
+
+/*Fin de calculo de Anexo 4*/
+
+
+
+
+/*Inicia codigo original de ¨Productro*/
  -- 1. Obtengo universo de instrumentos a procesar      
  INSERT @tblUniverso (txtId1,txtTV,txtEmisora,txtSerie,txtTipoActivo,intCustomerId)       
  SELECT          
@@ -294,7 +379,7 @@
  SELECT txtId1,txtTv,txtEmisora,txtSerie,txtTipoActivo,'PiP'+ SUBSTRING('0000000000',1,10-LEN(LTRIM(STR(intCustomerId)))) + LTRIM(STR(intCustomerId))      
  FROM @tblUniverso      
       
- INSERT @tmp_tblUnifiedPricesReport(txtTv,txtEmisora,txtSerie,txtId1,txtLiquidation,dblPRL,txtNEM,txtCUR,txtTIT,txtCOUNTRY,txtSEC)      
+ INSERT @tmp_tblUnifiedPricesReport(txtTv,txtEmisora,txtSerie,txtId1,txtLiquidation,dblPRL,txtNEM,txtCUR,txtTIT,txtCOUNTRY,txtSEC,txtBur,txtid2)      
  SELECT       
   RTRIM(txtTv),      
   RTRIM(txtEmisora),      
@@ -306,7 +391,19 @@
   CASE WHEN txtTv IN ('*C','*CSP') THEN SUBSTRING(RTRIM(txtSerie),1,3) ELSE 'MXN' END AS txtCUR,      
   RTRIM(txtTIT),      
   RTRIM(txtCOUNTRY),      
-  RTRIM(txtSEC)      
+  RTRIM(txtSEC),  
+ case 
+	when txtbur =  '-' then 'VACIO'
+	when txtBUR = 'ALTA' then '4'
+	when txtBUR = 'BAJA' then '1'
+	when txtBUR = 'MEDIA' then '2'
+	when txtBUR = 'MINIMA' then '0'
+	when txtBUR = 'NA' then 'VACIO'
+	when txtBUR = 'NULA' then '0'
+	when txtBUR = 'SIN BURSATILIDAD' then '0'
+end,
+  RTRIM(txtID2)
+  
  FROM dbo.tmp_tblUnifiedPricesReport (NOLOCK)      
       
  -- 3. Obtengo la informacion de precios de Vector MD      
@@ -332,7 +429,10 @@
   v.txtFACTOR_AJUSTE = '',       -- Se reportara en blanco hasta que el área de Insumos reporte esta información      
   v.txtESTATUS_INSTRUMENTO = '1',      
   v.txtNEW_VALUE = RTRIM(p.txtTV) + '_' + RTRIM(p.txtEmisora) + '_' + RTRIM(p.txtSerie),      
-  v.txtOLD_VALUE = ''      
+  v.txtOLD_VALUE = '',
+ v.txtNem= substring(p.txtNEM,0,50) ,--oaceves test  
+v.txtBur = p.txtBur , --oaceves test 
+v.txtid2 = p.txtid2 --oaceves test 
  FROM @tmp_tblUnifiedPricesReport AS p      
    INNER JOIN @tblVectorPricesBenchMarks AS v      
     ON p.txtId1 = v.txtId1      
@@ -574,12 +674,10 @@
    RTRIM(txtTIPO_ACTIVO) + '|' +      
    CONVERT(CHAR(8),dteFECHA,112) + '|' +      
    CASE WHEN dblPRECIO IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblPRECIO,6),19,6)) END + '|' +      
-      
    CASE       
     WHEN txtNOMBRE IS NULL OR txtNOMBRE = '-' OR txtNOMBRE = 'NA' THEN ''       
     ELSE RTRIM(txtNOMBRE)       
    END + '|' +      
-      
    RTRIM(txtCODIGO_INTERNACIONAL) + '|' +      
    RTRIM(txtDIVISA) + '|' +      
    CASE WHEN dblOPEN IS NULL THEN '' ELSE LTRIM(STR(ROUND(dblOPEN,6),19,6)) END + '|' +      
@@ -598,10 +696,17 @@
    CASE WHEN txtFACTOR_AJUSTE IS NULL OR txtFACTOR_AJUSTE = '-' OR txtFACTOR_AJUSTE = 'NA' THEN '' ELSE RTRIM(txtFACTOR_AJUSTE) END + '|' +      
    RTRIM(txtESTATUS_INSTRUMENTO) + '|' +      
    CASE WHEN txtNEW_VALUE IS NULL  THEN '' ELSE RTRIM(txtNEW_VALUE) END + '|' +      
-   CASE WHEN txtOLD_VALUE IS NULL  THEN '' ELSE RTRIM(txtOLD_VALUE) END      
+   CASE WHEN txtOLD_VALUE IS NULL  THEN '' ELSE RTRIM(txtOLD_VALUE) END      + '|' +    
+   CASE WHEN bm.txtnem IS NULL  THEN '' ELSE RTRIM(bm.txtnem) END  + '|' +
+   CASE WHEN Pi.txtProductIndex IS NULL  THEN '' ELSE RTRIM(Pi.txtProductIndex) END + '|' +
+   CASE WHEN Pi.txtPesoIndex IS NULL  THEN '' ELSE RTRIM(Pi.txtPesoIndex) END   + '|' +   
+   CASE WHEN Bm.txtBur IS NULL  THEN '' ELSE RTRIM(Bm.txtBur) END  + '|' + 
+  CASE WHEN  Bm.txtid2 IS NULL  THEN '' ELSE RTRIM(Bm.txtid2) END 
    AS [txtData]      
- FROM @tblVectorPricesBenchMarks      
-      
+ FROM @tblVectorPricesBenchMarks as Bm
+full  outer  join   @tblProduct_Indexes  as Pi
+on Bm.txtId1 = Pi.txtId1
+
  -- Detalle de Información BenchMarks      
  INSERT @tblResults (intConsecutivo,txtTV,txtEmisora,txtSerie,txtData)      
  SELECT       
@@ -725,7 +830,14 @@
    ''  + '|' + -- FACTOR_AJUSTE      
    '1'  + '|' + -- ESTATUS_INSTRUMENTO      
    ''  + '|' + -- NEW_VALUE      
-   ''   -- OLD_VALUE      
+   ''  + '|' + -- OLD_VALUE
+   ''  + '|' +--NOMBRE_LARGO
+    ''  + '|' +--CODIGO_PRODUCTO_INDICE
+    ''  + '|' +--PESO_INDICE
+    ''  + '|' +--BURSATILIDAD
+   ''  --ISIN
+        
+    
    AS [txtData]      
  FROM MxFixincome.dbo.tblBenchCatalog AS c (NOLOCK)      
   INNER JOIN MxFixincome.dbo.tblPiPIndexes AS p (NOLOCK)      
@@ -759,5 +871,3 @@
       
  --SET NOCOUNT OFF     
  --END     
-  
-  
