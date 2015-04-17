@@ -1,0 +1,3346 @@
+﻿Text
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;1
+ 	@txtDate AS CHAR(8),
+	@txtFlag AS CHAR(1)
+
+AS 
+/*	
+	Autor:			???
+	Creacion:		???
+	Descripcion:    Obtiene el formato consar del vector de indices
+
+	Modificacion:		2012-02-17
+	Modificado:			Ponate
+	Descripcion:		Se amplia condicion para indices internacionales *I	txtType = 'IND' txtSubType = 'EXT'
+*/
+
+BEGIN
+
+	-- indices y trackers internacionales
+	SELECT 
+		'H ' + 
+		'MC' +
+		@txtDate + 
+
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+		RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+		CASE i.txtTv
+		WHEN '1I' THEN 
+			SUBSTRING(REPLACE(STR(ROUND(
+			CASE
+				WHEN ia1.txtValue IS NULL THEN ir.dblValue
+				ELSE i3.dblValue
+			END * i2.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+				SUBSTRING(REPLACE(STR(ROUND(			
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END * i2.dblValue,6),16,6),  ' ', '0'), 11, 6) 
+		ELSE
+			SUBSTRING(REPLACE(STR(ROUND(			
+			CASE
+
+				WHEN ia1.txtValue IS NULL THEN ir.dblValue
+				ELSE i3.dblValue
+			END,6),16,6),  ' ', '0'), 1, 9) +
+				SUBSTRING(REPLACE(STR(ROUND(			
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END,6),16,6),  ' ', '0'), 11, 6) 
+		END +
+
+		'000000000000000' +	
+		'000000000000' + 	
+		'025009' + 
+		@txtFlag +	
+		'000000' +
+		'00000000' +	
+
+		RTRIM(i.txtId2) + REPLICATE(' ',12 - LEN(RTRIM(i.txtId2))) +
+
+		'0        ' +
+		'0      ' +
+		'0         ' AS txtRecord
+	
+	FROM 
+		tblIrc AS ir
+		INNER JOIN tblIds AS i
+		ON ir.txtIrc = i.txtEmisora
+		INNER JOIN tblIdsAdd AS ia
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'CUR'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia.txtItem
+			)
+		LEFT OUTER JOIN tblIdsAdd ia1
+		ON 
+			i.txtId1 = ia1.txtId1
+			AND ia1.txtItem = 'ALT_IRC'
+			AND ia1.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia1.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia1.txtItem
+			)
+		LEFT OUTER JOIN tblIrc AS i2
+		ON 
+			i2.txtIrc = (
+				CASE ia.txtValue
+				WHEN 'USD' THEN 'UFXU'
+				WHEN 'DLL' THEN 'UFXU'
+				ELSE ia.txtValue
+				END				
+			)
+			AND i2.dteDate = @txtDate
+		LEFT OUTER JOIN tblIrc AS i3
+		ON 
+			ia1.txtValue = i3.txtIrc
+			AND i3.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc
+			WHERE
+				txtIrc = i3.txtIrc
+				AND dteDate <= @txtDate
+			)
+	WHERE
+		ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+		--AND i.txtTv IN ('*I', '1I')
+		AND ((i.txtTv = ('*I') AND i.txtType = 'IND') 
+			OR
+			(i.txtTv = ('1I') AND i.txtType = 'TRA'))
+		AND i.txtSubType = 'EXT'
+		AND NOT i.txtEmisora IN ('SPINTPX')
+	UNION
+	
+	-- indices y trackers nacionales
+
+	SELECT 
+		'H ' + 
+		'MC' +
+		@txtDate + 
+
+
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+		RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+		SUBSTRING(REPLACE(STR(ROUND(ir.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(ir.dblValue,6),16,6),  ' ', '0'), 11, 6) +
+		'000000000000000' +	
+		'000000000000' + 	
+		'025009' + 
+		@txtFlag +	
+		'000000' +
+		'00000000' +	
+
+		RTRIM(i.txtId2) + REPLICATE(' ',12 - LEN(RTRIM(i.txtId2))) +
+
+		'0        ' +
+		'0      ' +
+		'0         ' AS txtRecord
+
+	FROM
+		tblIds AS i (NOLOCK)
+		INNER JOIN tblIrcCatalog AS ic (NOLOCK)
+		ON i.txtEmisora = ic.txtIrc
+		INNER JOIN tblIrc AS ir (NOLOCK)
+		ON ic.txtIrc = ir.txtIrc	
+	WHERE	
+		ic.intIrcCategory IN (2, 6)
+		AND i.txtTv IN ('RC', '1B')
+		AND ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc (NOLOCK)
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+
+	ORDER BY 
+		txtRecord
+
+END
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;2
+ 	@txtDate AS VARCHAR(10)
+
+AS 
+/*	
+	Autor:			???
+	Creacion:		???
+	Descripcion:    Obtiene el formato pip del vector de indices
+
+	Modificacion:		2012-02-17
+	Modificado:			Ponate
+	Descripcion:		Se amplia condicion para indices internacionales *I	txtType = 'IND' txtSubType = 'EXT'
+*/
+
+BEGIN
+
+	-- indices y trackers internacionales
+	SELECT 
+		@txtDate +
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) + 
+		RTRIM(i.txtEmisora) + REPLICATE(' ',7 - LEN(i.txtEmisora)) + 
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+		CASE i.txtTv
+		WHEN '1I' THEN
+			SUBSTRING(REPLACE(STR(ROUND(			
+			CASE
+				WHEN ia1.txtValue IS NULL THEN ir.dblValue
+				ELSE i3.dblValue
+			END * i2.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+				SUBSTRING(REPLACE(STR(ROUND(			
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END * i2.dblValue,6),16,6),  ' ', '0'), 11, 6) 
+		ELSE
+			SUBSTRING(REPLACE(STR(ROUND(			
+			CASE
+				WHEN ia1.txtValue IS NULL THEN ir.dblValue
+				ELSE i3.dblValue
+			END,6),16,6),  ' ', '0'), 1, 9) +
+				SUBSTRING(REPLACE(STR(ROUND(			
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END,6),16,6),  ' ', '0'), 11, 6) 
+		END +
+
+		CASE
+		WHEN ia.txtValue IS NULL THEN '*M'
+		ELSE RTRIM(SUBSTRING(ia.txtValue,1,2)) + REPLICATE(' ',2 - LEN(SUBSTRING(ia.txtValue,1,2)))  
+		END AS txtRecord
+	FROM 
+		tblIds AS i
+		INNER JOIN tblIrc AS ir
+		ON i.txtEmisora = ir.txtIrc	
+		LEFT OUTER JOIN tblIdsAdd AS ia
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'COUNTRY'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia.txtItem
+			)
+		INNER JOIN tblIdsAdd AS ia2
+		ON 
+			i.txtId1 = ia2.txtId1
+			AND ia2.txtItem = 'CUR'
+			AND ia2.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia2.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia2.txtItem
+			)
+		LEFT OUTER JOIN tblIdsAdd ia1
+		ON 
+			i.txtId1 = ia1.txtId1
+			AND ia1.txtItem = 'ALT_IRC'
+			AND ia1.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia1.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia1.txtItem
+			)
+		LEFT OUTER JOIN tblIrc AS i2
+		ON 
+			i2.txtIrc = (
+				CASE ia2.txtValue
+				WHEN 'USD' THEN 'UFXU'
+				WHEN 'DLL' THEN 'UFXU'
+				ELSE ia2.txtValue
+				END				
+			)
+			AND i2.dteDate = @txtDate
+		LEFT OUTER JOIN tblIrc AS i3
+		ON 
+			ia1.txtValue = i3.txtIrc
+			AND i3.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc
+			WHERE
+				txtIrc = i3.txtIrc
+				AND dteDate <= @txtDate
+			)
+	WHERE
+		--i.txtTv IN ('*I', '1I')
+		((i.txtTv = ('*I') AND i.txtType = 'IND') 
+			OR
+			(i.txtTv = ('1I') AND i.txtType = 'TRA'))
+		AND i.txtSubType = 'EXT'
+		AND ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+		AND NOT i.txtEmisora IN ('SPINTPX')
+	UNION
+
+	-- indices y trackers nacionales
+	SELECT 
+
+		@txtDate +
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) + 
+		RTRIM(i.txtEmisora) + REPLICATE(' ',7 - LEN(i.txtEmisora)) + 
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+		SUBSTRING(REPLACE(STR(ROUND(ir.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(ir.dblValue,6),16,6),  ' ', '0'), 11, 6) +
+		CASE
+		WHEN ia.txtValue IS NULL THEN '*M'
+		ELSE RTRIM(SUBSTRING(ia.txtValue,1,2)) + REPLICATE(' ',2 - LEN(SUBSTRING(ia.txtValue,1,2)))  
+		END AS txtRecord
+
+	FROM
+		tblIds AS i (NOLOCK)
+		INNER JOIN tblIrcCatalog AS ic (NOLOCK)
+		ON i.txtEmisora = ic.txtIrc
+		INNER JOIN tblIrc AS ir (NOLOCK)
+		ON ic.txtIrc = ir.txtIrc	
+		LEFT OUTER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'COUNTRY'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = ia.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia.txtItem
+			)
+	WHERE	
+		ic.intIrcCategory IN (2, 6)
+		AND i.txtTv IN ('RC', '1B')
+		AND ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc (NOLOCK)
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+
+	ORDER BY 
+		txtRecord
+
+END
+
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;3
+ 	@txtDate AS VARCHAR(10)
+
+AS 
+/*	
+	Autor:			???
+	Creacion:		???
+	Descripcion:    Obtiene el formato csv del vector de indices
+
+	Modificacion:		2012-02-17
+	Modificado:			Ponate
+	Descripcion:		Se amplia condicion para indices internacionales *I	txtType = 'IND' txtSubType = 'EXT'
+*/
+
+BEGIN
+
+	-- indices y trackers internacionales
+	SELECT 
+	
+		@txtDate + ',' + 
+		RTRIM(i.txtTv) + ',' + 
+		RTRIM(i.txtEmisora) + ',' + 
+		RTRIM(i.txtSerie) + ',' + 
+
+		CASE i.txtTv
+		WHEN '1I' THEN
+			LTRIM(SUBSTRING(STR(ROUND(
+			CASE
+				WHEN ia1.txtValue IS NULL THEN ir.dblValue
+				ELSE i3.dblValue
+			END * i2.dblValue,6),16,6), 1, 9)) + '.' +
+				RTRIM(SUBSTRING(STR(ROUND(			
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END * i2.dblValue,6),16,6), 11, 6)) + ',' 
+		ELSE 
+			LTRIM(SUBSTRING(STR(ROUND(			
+			CASE
+				WHEN ia1.txtValue IS NULL THEN ir.dblValue
+				ELSE i3.dblValue
+			END,6),16,6), 1, 9)) + '.' +
+				RTRIM(SUBSTRING(STR(ROUND(
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END,6),16,6), 11, 6)) + ',' 
+		END + 
+
+		CASE
+		WHEN ia.txtValue IS NULL THEN '*M'
+		ELSE RTRIM(SUBSTRING(ia.txtValue,1,2)) + REPLICATE(' ',2 - LEN(SUBSTRING(ia.txtValue,1,2)))  
+		END + ',' +
+
+		CASE
+		WHEN ia2.txtValue IS NULL THEN ''
+		ELSE RTRIM(ia2.txtValue)
+		END  AS txtRecord
+	FROM 
+		tblIds AS i
+		INNER JOIN tblIrc AS ir
+		ON i.txtEmisora = ir.txtIrc	
+		LEFT OUTER JOIN tblIdsAdd AS ia
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'COUNTRY'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia.txtId1
+					AND txtItem = ia.txtItem
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+			)
+		LEFT OUTER JOIN tblIdsAdd AS ia2
+		ON 
+			i.txtId1 = ia2.txtId1
+			AND ia2.txtItem = 'ID7'
+			AND ia2.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia2.txtId1
+					AND txtItem = ia2.txtItem
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+			)
+
+		INNER JOIN tblIdsAdd AS ia3
+		ON 
+			i.txtId1 = ia3.txtId1
+			AND ia3.txtItem = 'CUR'
+			AND ia3.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia3.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia3.txtItem
+			)
+		LEFT OUTER JOIN tblIrc AS i2
+		ON 
+			i2.txtIrc = (
+				CASE ia3.txtValue
+				WHEN 'USD' THEN 'UFXU'
+				WHEN 'DLL' THEN 'UFXU'
+				ELSE ia3.txtValue
+				END				
+			)
+			AND i2.dteDate = @txtDate
+				LEFT OUTER JOIN tblIdsAdd ia1
+		ON 
+			i.txtId1 = ia1.txtId1
+			AND ia1.txtItem = 'ALT_IRC'
+			AND ia1.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia1.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia1.txtItem
+			)
+		LEFT OUTER JOIN tblIrc AS i3
+		ON 
+			ia1.txtValue = i3.txtIrc
+			AND i3.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc
+			WHERE
+				txtIrc = i3.txtIrc
+				AND dteDate <= @txtDate
+			)
+	WHERE
+		--i.txtTv IN ('*I', '1I')
+		((i.txtTv = ('*I') AND i.txtType = 'IND') 
+			OR
+			(i.txtTv = ('1I') AND i.txtType = 'TRA'))
+		AND i.txtSubType = 'EXT'
+		AND ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+		AND NOT i.txtEmisora IN ('SPINTPX')
+
+	UNION
+
+	-- indices y trackers nacionales
+	SELECT 
+	
+		@txtDate + ',' + 
+		RTRIM(i.txtTv) + ',' + 
+		RTRIM(i.txtEmisora) + ',' + 
+		RTRIM(i.txtSerie) + ',' + 
+		LTRIM(SUBSTRING(STR(ROUND(ir.dblValue,6),16,6), 1, 9)) + '.' +
+			RTRIM(SUBSTRING(STR(ROUND(ir.dblValue,6),16,6), 11, 6)) + ',' + 
+		CASE
+		WHEN ia.txtValue IS NULL THEN '*M'
+		ELSE RTRIM(SUBSTRING(ia.txtValue,1,2)) + REPLICATE(' ',2 - LEN(SUBSTRING(ia.txtValue,1,2)))  
+		END + ',' +
+
+		CASE
+		WHEN ia2.txtValue IS NULL THEN ''
+		ELSE RTRIM(ia2.txtValue)
+		END  AS txtRecord
+	FROM 
+
+
+		tblIds AS i (NOLOCK)
+		INNER JOIN tblIrcCatalog AS ic (NOLOCK)
+		ON i.txtEmisora = ic.txtIrc
+		INNER JOIN tblIrc AS ir (NOLOCK)
+		ON ic.txtIrc = ir.txtIrc	
+
+		LEFT OUTER JOIN tblIdsAdd AS ia(NOLOCK)
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'COUNTRY'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd(NOLOCK)
+				WHERE
+					txtId1 = ia.txtId1
+					AND txtItem = ia.txtItem
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+			)
+		LEFT OUTER JOIN tblIdsAdd AS ia2(NOLOCK)
+		ON 
+			i.txtId1 = ia2.txtId1
+			AND ia2.txtItem = 'ID7'
+			AND ia2.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd(NOLOCK)
+				WHERE
+					txtId1 = ia2.txtId1
+					AND txtItem = ia2.txtItem
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+			)
+	WHERE
+		ic.intIrcCategory IN (2, 6)
+		AND i.txtTv IN ('RC', '1B')
+		AND ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc (NOLOCK)
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+
+	ORDER BY 
+		txtRecord
+
+
+END--   Modificado por:	Lic. René López Salinas
+--   Modificacion:	11:31 p.m. 2011-08-10
+--   Descripcion:    	Modulo 4: Se modifico para implementar mecanismo de calendario de fechas 
+--						para AGILIZAR las consultas del proceso
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;4
+	@txtDate AS VARCHAR(10)
+AS
+BEGIN
+		
+	SET NOCOUNT ON
+
+	DECLARE @txtIndex AS CHAR(10)
+	DECLARE @dteMaxdate AS DATETIME
+	DECLARE @dblIndexValue AS FLOAT
+
+	-- Contadores de ciclo 
+	DECLARE @intTotalRow as int 
+	DECLARE @intRow as int 
+	SET @intRow = 1 
+
+	-- Crear estructura 
+	DECLARE @tmp_portfolios TABLE ( 
+			intRow int identity(1,1), 
+			txtIndex char(7) NOT NULL 
+		PRIMARY KEY (intRow) 
+	) 
+
+	-- Calendario fechas Habiles
+	DECLARE @tblFechas TABLE ( 
+		dteDate DATETIME
+		PRIMARY KEY (dteDate) 
+	) 
+
+	DECLARE @tblIndexEquityPrices TABLE (
+		txtIndex CHAR(7),
+		dteDate DATETIME,
+		txtId1 CHAR(11),
+		dblCount FLOAT,
+		dblPrice FLOAT,
+		txtCurrency CHAR(6),
+		dblExchange FLOAT,				
+		dblMXNPrice FLOAT,
+		dblPond FLOAT
+		PRIMARY  KEY(txtIndex, txtId1)
+	)
+
+	-- Carga informacion de Calendario
+	INSERT @tblFechas (dteDate)
+	SELECT dteDate FROM dbo.FUN_GetDatesRange('20001101',@txtDate)
+
+	-- Carga informacion de indices
+	INSERT @tmp_portfolios (txtIndex)
+	SELECT DISTINCT ip.txtIndex
+	FROM 
+		tblIndexesPortfolios AS ip (NOLOCK)
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS od (NOLOCK)
+		ON ip.txtIndex = od.txtDir
+	WHERE
+		od.txtProductId = 'VA'
+		AND od.dteBeg <= @txtDate
+		AND od.dteEnd >= @txtDate
+
+	SET @intTotalRow = (SELECT COUNT(*) FROM @tmp_portfolios) 
+
+	-- contenedores para obtener las fechas y horas
+	-- mas recientes x cada accion...
+	DECLARE @tblEquityPrices TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+		PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblEquityPrices2 TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME,
+		dteTime DATETIME
+		PRIMARY KEY(txtId1, dteDate)
+	)
+
+
+	WHILE @intRow <= @intTotalRow 
+	BEGIN 
+
+		-- Obtengo la info de cada registro 
+        SELECT 
+            @txtIndex = txtIndex
+        FROM @tmp_portfolios
+        WHERE intRow = @intRow 
+
+		-- obtengo composicion mas reciente
+		SET @dteMaxdate = (
+			SELECT 
+				CASE 
+				WHEN MAX(dteDate) IS NULL THEN '19790324'
+				ELSE MAX(dteDate)
+				END AS dteDate
+			FROM tblIndexesPortfolios(NOLOCK)
+			WHERE
+				txtIndex = @txtIndex
+				AND dteDate <= @txtDate
+		)
+
+		IF @dteMaxdate <> '19790324'
+		BEGIN
+
+
+
+			-- obtengo las fechas mas recientes
+			-- x cada accion...
+			DELETE FROM @tblEquityPrices
+
+			INSERT INTO @tblEquityPrices (
+				txtId1,
+				dteDate
+			)
+			SELECT 
+				e.txtId1,
+				MAX(ep.dteDate) AS dteDate
+			FROM 
+				dbo.tblIndexesPortfolios AS ip (NOLOCK)
+				INNER JOIN dbo.tblEquity AS e (NOLOCK)
+					ON e.txtId1 = ip.txtId1 
+							AND ip.txtIndex = @txtIndex
+							AND ip.dteDate = @dteMaxdate
+				INNER JOIN dbo.tblEquityPrices AS ep  (NOLOCK)
+					ON e.txtId1 = ep.txtId1
+						AND ep.txtOperationCode = 'S01'
+				INNER JOIN @tblFechas AS d
+					ON ep.dteDate = d.dteDate
+			WHERE 
+				ep.dteDate <= @txtDate
+			GROUP BY 
+				e.txtId1			
+
+			-- obtengo las horas mas recientes
+			-- x cada accion...
+			DELETE @tblEquityPrices2
+			INSERT INTO @tblEquityPrices2 (
+				txtId1,
+				dteDate,
+				dteTime
+			)		
+			SELECT
+				ep.txtId1,
+				ep.dteDate,
+				MAX(ep.dteTime) AS dteTime
+			FROM 
+				tblEquityPrices AS ep (NOLOCK)
+				INNER JOIN @tblEquityPrices AS ep1
+				ON 
+					ep.txtId1 = ep1.txtId1
+					AND ep.dteDate = ep1.dteDate
+			WHERE
+				ep.txtOperationCode = 'S01'
+			GROUP BY 
+				ep.txtId1,
+				ep.dteDate
+
+			-- obtengo los precios de las acciones en pesos
+			INSERT INTO @tblIndexEquityPrices
+			SELECT 
+				ip.txtIndex,
+				ip.dteDate,
+				ip.txtId1,
+				ip.dblCount,
+				ep.dblPrice,
+				e.txtCurrency,
+				
+				CASE
+				WHEN i.dblValue IS NULL THEN 1
+				ELSE i.dblValue
+				END AS dblExchange,
+				
+				CASE
+				WHEN p.dblValue IS NULL THEN -999
+				ELSE p.dblValue
+				END AS dblMXNPrice,
+
+				1E-10 AS dblPond
+			FROM 
+				tblEquity AS e  (NOLOCK)
+				INNER JOIN @tblEquityPrices2 AS ep2
+				ON e.txtId1 = ep2.txtId1
+				INNER JOIN tblEquityPrices AS ep (NOLOCK)
+				ON 
+					ep.txtId1 = ep2.txtId1
+					AND ep.dteDate = ep2.dteDate
+					AND ep.dteTime = ep2.dteTime
+				INNER JOIN tblIndexesPortfolios AS ip (NOLOCK)
+				ON e.txtId1 = ip.txtId1
+				LEFT OUTER JOIN tblIrc AS i (NOLOCK)
+				ON 
+					i.txtIrc = (
+						CASE 
+						WHEN e.txtCurrency IN ('USD') THEN 'UFXU'		
+						ELSE e.txtCurrency
+						END
+					)
+					AND i.dteDate = @txtDate
+
+				LEFT OUTER JOIN tblPrices AS p (NOLOCK)
+				ON 
+					e.txtId1 = p.txtId1	
+					AND p.dteDate = @txtDate
+					AND p.txtItem = 'PAV'
+
+			WHERE
+				ip.txtIndex = @txtIndex
+				AND ip.dteDate = @dteMaxdate
+
+			-- obtengo los precios en pesos		
+			UPDATE	@tblIndexEquityPrices
+			SET dblMXNPrice = dblPrice * dblExchange
+			WHERE
+				txtIndex = @txtIndex
+				AND dblMXNPrice = -999
+	
+			-- obtengo el valor del indice en pesos
+			SET @dblIndexValue = (
+				SELECT 	SUM(dblCount * dblPrice * dblExchange)		
+				FROM @tblIndexEquityPrices
+				WHERE
+					txtIndex = @txtIndex
+			)
+
+			UPDATE	@tblIndexEquityPrices
+			SET dblPond = dblMXNPrice * dblCount / @dblIndexValue
+			WHERE
+				txtIndex = @txtIndex
+
+		END
+
+	    -- skip siguiente registro 
+		SET @intRow = @intRow + 1 
+
+	END	
+
+	-- obtengo codigos internacionales
+
+	-- para obtener los codigo 
+	-- internacionales...
+	DECLARE @tblIdsAdd TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+		PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblIdsAdd2 TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+		PRIMARY KEY(txtId1)
+	)
+
+	INSERT @tblIdsAdd (
+		txtId1,
+		dteDate
+	)
+	SELECT 
+		ia.txtId1,
+		MAX(ia.dteDate)
+	FROM 
+		@tblIndexEquityPrices AS r
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON r.txtId1 = ia.txtId1
+	WHERE
+		ia.dteDate < CAST(@txtDate AS DATETIME) + 1
+		AND ia.txtItem = 'ID4'
+	GROUP BY
+		ia.txtId1
+
+	INSERT @tblIdsAdd2 (
+		txtId1,
+		dteDate
+	)
+	SELECT 
+		ia.txtId1,
+		MAX(ia.dteDate)
+	FROM 
+		@tblIndexEquityPrices AS r
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON r.txtId1 = ia.txtId1
+	WHERE
+		ia.dteDate < CAST(@txtDate AS DATETIME) + 1
+		AND ia.txtItem = 'ID3'
+	GROUP BY
+		ia.txtId1
+
+	DECLARE @tblIds TABLE (
+		txtId1 CHAR(11),
+		txtIsin CHAR(12),
+		txtSedol VARCHAR(50),
+		txtCusip VARCHAR(50)
+		PRIMARY KEY(txtId1)	
+	)
+
+	INSERT INTO @tblIds (
+		txtId1,
+		txtIsin,
+		txtSedol,
+		txtCusip
+	)
+	SELECT DISTINCT 
+		i.txtId1,
+
+		CASE
+		WHEN i.txtId2 IS NULL THEN ''
+		ELSE i.txtId2
+		END AS txtIsin,
+
+		CASE
+		WHEN a.txtValue IS NULL THEN ''
+		ELSE a.txtValue
+		END AS txtSedol,
+
+		CASE
+		WHEN a2.txtValue IS NULL THEN ''
+		ELSE a2.txtValue
+		END AS txtCusip
+	FROM 
+		@tblIndexEquityPrices AS r
+		INNER JOIN tblIds AS i (NOLOCK)
+		ON r.txtId1 = i.txtId1
+		LEFT OUTER JOIN @tblIdsAdd AS a3
+		ON i.txtId1 = a3.txtId1		
+		LEFT OUTER JOIN @tblIdsAdd2 AS a4
+		ON i.txtId1 = a4.txtId1		
+		LEFT OUTER JOIN tblIdsAdd AS a (NOLOCK)
+		ON 
+			a.txtId1 = a3.txtId1
+			AND a.txtItem = 'ID4'
+			AND a.dteDate = a3.dteDate
+		LEFT OUTER JOIN tblIdsAdd AS a2 (NOLOCK)
+		ON 
+			a2.txtId1 = a4.txtId1
+			AND a2.txtItem = 'ID3'
+			AND a2.dteDate = a4.dteDate
+
+
+	SET NOCOUNT OFF
+
+	-- resultado
+	 SELECT  
+		'H ' + 
+		'MC' +
+		@txtDate +
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+		RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+	
+		SUBSTRING(REPLACE(STR(ROUND(AVG(c.dblMXNPrice),6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(AVG(c.dblMXNPrice),6),16,6),  ' ', '0'), 11, 6) +
+	
+		'000000000000000' +
+		'000000000000' +
+		'025009' + 
+		'0' + 
+		'000000' + 
+		'00000000' + 
+	
+		RTRIM(i2.txtIsin) + REPLICATE(' ',12 - LEN(i2.txtIsin)) +
+		RTRIM(i2.txtCusip) + REPLICATE(' ',9 - LEN(i2.txtCusip)) +
+		RTRIM(i2.txtSedol) + REPLICATE(' ',7 - LEN(i2.txtSedol))  +
+		'0         ' AS txtVectorConsar
+		
+	 FROM 
+		@tblIndexEquityPrices AS c
+		INNER JOIN tblIds AS i (NOLOCK)
+		ON c.txtId1 = i.txtId1
+		INNER JOIN @tblIds AS i2
+		ON i.txtId1 = i2.txtId1
+	 GROUP BY 
+		i.txtTv,
+		i.txtEmisora,
+		SUBSTRING(i.txtEmisora, 1, 7),
+		i.txtSerie,
+		i2.txtIsin,
+		i2.txtCusip,
+		i2.txtSedol
+	 ORDER BY
+		i.txtTv,
+		i.txtEmisora,
+		i.txtSerie
+
+END
+--   Modificado por:	Lic. René López Salinas
+--   Modificacion:	08:23 p.m. 2012-10-01
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;5
+	@txtDate AS VARCHAR(10)
+AS
+BEGIN
+
+	SET NOCOUNT ON
+
+	DECLARE @txtIndex AS CHAR(10)
+	DECLARE @dteMaxdate AS DATETIME
+	DECLARE @dblIndexValue AS FLOAT
+
+	-- Contadores de ciclo 
+	DECLARE @intTotalRow as int 
+	DECLARE @intRow as int 
+	SET @intRow = 1 
+
+	-- Crear estructura 
+	DECLARE @tmp_portfolios TABLE ( 
+			intRow int identity(1,1), 
+			txtIndex char(7) NOT NULL 
+		PRIMARY KEY (intRow) 
+	) 
+
+	-- Calendario fechas Habiles
+	DECLARE @tblFechas TABLE ( 
+		dteDate DATETIME
+		PRIMARY KEY (dteDate) 
+	) 
+
+	-- creo tablas temporales (buffers) para agilizar calculo
+	DECLARE @tblEquityPrices TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblEquityPricesTime TABLE (
+		txtId1 CHAR(11),
+		dteTime DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblEquityIndexesUnits TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	-- creo tabla consolidada para almacenar datos
+	DECLARE @tblIndexEquityPrices TABLE (
+		txtIndex CHAR(10),
+		dteDate DATETIME,
+		txtId1 CHAR(11),
+		dblCount FLOAT,
+		dblPrice FLOAT,
+		txtCurrency CHAR(5),
+		dblExchange FLOAT,
+		dblMXNPrice FLOAT,
+		dblPond FLOAT,
+		dblUnits FLOAT
+			PRIMARY KEY(txtIndex, txtId1)
+
+	)
+
+
+	-- Carga informacion de Calendario
+	INSERT @tblFechas (dteDate)
+	SELECT dteDate FROM dbo.FUN_GetDatesRange('20001101',@txtDate)
+
+	-- Carga informacion de indices
+	INSERT @tmp_portfolios (txtIndex)
+	SELECT DISTINCT ip.txtIndex
+	FROM 
+		dbo.tblIndexesPortfolios AS ip (NOLOCK)
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS od (NOLOCK)
+		ON ip.txtIndex = od.txtDir
+	WHERE
+		od.txtProductId = 'VA'
+		AND od.dteBeg <= @txtDate
+		AND od.dteEnd >= @txtDate
+
+
+	SET @intTotalRow = (SELECT COUNT(*) FROM @tmp_portfolios) 
+
+	WHILE @intRow <= @intTotalRow 
+	BEGIN 
+
+		-- Obtengo la info de cada registro 
+        SELECT
+            @txtIndex = txtIndex
+        FROM @tmp_portfolios
+        WHERE intRow = @intRow 
+
+		-- obtengo composicion mas reciente
+		SET @dteMaxdate = (
+			SELECT 
+				CASE 
+				WHEN MAX(dteDate) IS NULL THEN '19790324'
+				ELSE MAX(dteDate)
+				END AS dteDate
+			FROM dbo.tblIndexesPortfolios (NOLOCK)   -- txtIndex, dteDate, txtId1
+			WHERE
+				txtIndex = @txtIndex
+				AND dteDate <= @txtDate
+		)
+
+		IF @dteMaxdate <> '19790324'
+		BEGIN
+
+			-- obtengo las fechas mas recientes
+			DELETE FROM @tblEquityPrices
+
+			INSERT INTO @tblEquityPrices (
+				txtId1,
+				dteDate
+			)
+			SELECT 
+				e.txtId1,
+				MAX(ep.dteDate) AS dteDate
+			FROM 
+				dbo.tblIndexesPortfolios AS ip (NOLOCK)
+				INNER JOIN dbo.tblEquity AS e (NOLOCK)
+					ON e.txtId1 = ip.txtId1 
+							AND ip.txtIndex = @txtIndex
+							AND ip.dteDate = @dteMaxdate
+				INNER JOIN dbo.tblEquityPrices AS ep  (NOLOCK)
+					ON e.txtId1 = ep.txtId1
+						AND ep.txtOperationCode = 'S01'
+				INNER JOIN @tblFechas AS d
+					ON ep.dteDate = d.dteDate
+			WHERE 
+				ep.dteDate <= @txtDate
+			GROUP BY 
+				e.txtId1			
+
+			-- obtengo las horas mas recientes
+			DELETE FROM @tblEquityPricesTime
+
+			INSERT INTO @tblEquityPricesTime (
+				txtId1,
+				dteTime
+			)
+			SELECT 
+				e.txtId1,
+				MAX(ep.dteTime) AS dteTime
+			FROM 
+				@tblEquityPrices AS e
+				INNER JOIN dbo.tblEquityPrices AS ep (NOLOCK)
+				ON 
+					e.txtId1 = ep.txtId1
+					AND e.dteDate = ep.dteDate
+					AND ep.txtOperationCode = 'S01'
+			GROUP BY 
+				e.txtId1
+
+			-- obtengo la definicion mas reciente
+			-- de unidades por accion por indice
+			DELETE FROM @tblEquityIndexesUnits
+		
+			INSERT INTO @tblEquityIndexesUnits (
+				txtId1,
+				dteDate
+			)
+			SELECT 
+				txtId1,
+				MAX(dteDate)
+			FROM dbo.tblEquityIndexesUnits (NOLOCK)
+			WHERE
+				txtIrc = @txtIndex
+				AND dteDate <= @txtDate
+			GROUP BY 
+				txtId1
+
+			-- obtengo los precios de las acciones en pesos
+			INSERT INTO @tblIndexEquityPrices (
+				txtIndex,
+				dteDate,
+				txtId1,
+				dblCount,
+				dblPrice,
+				txtCurrency,
+				dblExchange,
+				dblMXNPrice,
+				dblPond,
+				dblUnits
+			)
+
+			SELECT 
+				ip.txtIndex,
+				ip.dteDate,
+				ip.txtId1,
+				ip.dblCount,
+				ep.dblPrice,
+				e.txtCurrency,
+				
+				CASE
+				WHEN i.dblValue IS NULL THEN 1
+				ELSE i.dblValue
+				END AS dblExchange,
+
+				CASE
+				WHEN p.dblValue IS NULL THEN -999
+				ELSE p.dblValue
+				END AS dblMXNPrice,
+
+				1E-10 AS dblPond,
+
+				CASE
+				WHEN eiu.dblUnits IS NULL THEN 1
+				ELSE eiu.dblUnits
+				END AS dblUnits
+
+			FROM 
+				dbo.tblEquity AS e (NOLOCK)
+				INNER JOIN dbo.tblIndexesPortfolios AS ip (NOLOCK)
+				ON e.txtId1 = ip.txtId1
+				INNER JOIN @tblEquityPrices AS ed
+				ON e.txtId1 = ed.txtId1
+				INNER JOIN @tblEquityPricesTime AS et
+				ON e.txtId1 = et.txtId1
+				INNER JOIN dbo.tblEquityPrices AS ep (NOLOCK)
+				ON 
+					e.txtId1 = ep.txtId1
+					AND ep.dteDate = ed.dteDate
+					AND ep.dteTime = et.dteTime
+
+				LEFT OUTER JOIN dbo.tblIrc AS i (NOLOCK)
+				ON 
+					i.txtIrc = (
+						CASE 
+						WHEN e.txtCurrency IN ('USD') THEN 'UFXU'		
+						ELSE e.txtCurrency
+						END
+					)
+					AND i.dteDate = @txtDate
+
+				LEFT OUTER JOIN dbo.tblPrices AS p (NOLOCK)
+				ON 
+					e.txtId1 = p.txtId1
+					AND p.dteDate = @txtDate
+					AND p.txtItem = 'PAV'
+
+				LEFT OUTER JOIN @tblEquityIndexesUnits AS eibuff
+				ON 
+					e.txtId1 = eibuff.txtId1
+
+				LEFT OUTER JOIN dbo.tblEquityIndexesUnits AS eiu (NOLOCK)
+				ON 
+					e.txtId1 = eiu.txtId1
+					AND eiu.txtIrc = @txtIndex
+					AND eiu.dteDate = eibuff.dteDate		
+				
+			WHERE
+				ip.txtIndex = @txtIndex
+				AND ip.dteDate = @dteMaxdate
+
+			-- obtengo los precios en pesos		
+			UPDATE	@tblIndexEquityPrices
+			SET dblMXNPrice = dblPrice * dblExchange
+			WHERE
+				txtIndex = @txtIndex
+				AND dblMXNPrice = -999
+	
+			-- obtengo el valor del indice en pesos
+			SET @dblIndexValue = (
+				SELECT 	SUM(dblCount * dblMXNPrice * dblUnits)
+				FROM @tblIndexEquityPrices
+				WHERE
+					txtIndex = @txtIndex
+			)
+
+			UPDATE	@tblIndexEquityPrices
+			SET dblPond = dblMXNPrice * dblCount * dblUnits / @dblIndexValue
+			WHERE
+				txtIndex = @txtIndex
+
+		END 
+
+	    -- skip siguiente registro 
+		SET @intRow = @intRow + 1 
+
+	END	
+
+	-- creo tablas temporales (buffers) para agilizar extracciones
+	DECLARE @tblIdsAddId3 TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblIdsAddId4 TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblIdsAddCountry TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	INSERT @tblIdsAddId3 (
+		txtId1,
+		dteDate
+	)
+	SELECT 
+		e.txtId1,
+		MAX(ia.dteDate) AS dteDate
+	FROM 
+		@tblIndexEquityPrices AS e
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON e.txtId1 = ia.txtId1
+	WHERE
+		ia.txtItem = 'ID3'
+		AND ia.dteDate < CAST(@txtDate AS DATETIME) + 1
+	GROUP BY 
+		e.txtId1
+
+
+	INSERT @tblIdsAddId4 (
+		txtId1,
+		dteDate
+	)
+	SELECT 
+		e.txtId1,
+		MAX(ia.dteDate) AS dteDate
+	FROM 
+		@tblIndexEquityPrices AS e
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON e.txtId1 = ia.txtId1
+	WHERE
+		ia.txtItem = 'ID4'
+		AND ia.dteDate < CAST(@txtDate AS DATETIME) + 1
+	GROUP BY 
+		e.txtId1
+
+	INSERT @tblIdsAddCountry (
+		txtId1,
+		dteDate
+	)
+	SELECT 
+		e.txtId1,
+		MAX(ia.dteDate) AS dteDate
+	FROM 
+		@tblIndexEquityPrices AS e
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON e.txtId1 = ia.txtId1
+	WHERE
+		ia.txtItem = 'COUNTRY'
+		AND ia.dteDate < CAST(@txtDate AS DATETIME) + 1
+	GROUP BY 
+		e.txtId1
+
+	-- creo tabla temporal para consolidar datos 
+	-- adicionales no relativos a valuacion
+	DECLARE @tblIdsAdd TABLE (
+		txtId1 CHAR(11),
+		txtId2 CHAR(12),
+		txtId3 VARCHAR(50),
+		txtId4 VARCHAR(50),
+		txtCountry VARCHAR(50),
+		txtCur CHAR(6)
+			PRIMARY KEY(txtId1)
+	)
+
+	INSERT INTO @tblIdsAdd (
+		txtId1,
+		txtId2,
+		txtId3,
+		txtId4,
+		txtCountry,
+		txtCur
+	)
+	SELECT DISTINCT 
+		e.txtId1,
+
+		CASE
+		WHEN i.txtId2 IS NULL THEN ''
+		ELSE i.txtId2
+		END AS txtId2,
+
+		CASE
+		WHEN ia.txtValue IS NULL THEN ''
+		ELSE ia.txtValue
+		END AS txtId3,
+
+		CASE
+		WHEN iaQ.txtValue IS NULL THEN ''
+		ELSE iaQ.txtValue
+		END AS txtId4,
+
+		CASE
+		WHEN iaK.txtValue IS NULL THEN 'MX'
+		ELSE iaK.txtValue
+		END AS txtCountry,
+
+		CASE
+		WHEN e.txtCurrency IS NULL THEN 'MXN'
+		WHEN e.txtCurrency IN ('MPS', 'MXP') THEN 'MXN'
+		WHEN e.txtCurrency IN ('UFXU') THEN 'USD'
+		ELSE e.txtCurrency
+		END AS txtCur
+
+	FROM 
+		tblIds AS i (NOLOCK)
+		INNER JOIN tblEquity AS e (NOLOCK)
+		ON i.txtId1 = e.txtId1
+		INNER JOIN @tblIndexEquityPrices AS p
+		ON e.txtId1 = p.txtId1
+		LEFT OUTER JOIN @tblIdsAddId3 AS ia3
+		ON e.txtId1 = ia3.txtId1
+		LEFT OUTER JOIN @tblIdsAddId4 AS ia4
+		ON e.txtId1 = ia4.txtId1
+		LEFT OUTER JOIN @tblIdsAddCountry AS iaC
+		ON e.txtId1 = iaC.txtId1
+
+		LEFT OUTER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON 
+			e.txtId1 = ia.txtId1
+			AND ia.txtItem = 'ID3'
+			AND ia.dteDate = ia3.dteDate
+
+		LEFT OUTER JOIN tblIdsAdd AS iaQ (NOLOCK)
+		ON 
+			e.txtId1 = iaQ.txtId1
+			AND iaQ.txtItem = 'ID4'
+			AND iaQ.dteDate = ia4.dteDate
+
+		LEFT OUTER JOIN tblIdsAdd AS iaK (NOLOCK)
+		ON 
+			e.txtId1 = iaK.txtId1
+			AND iaK.txtItem = 'COUNTRY'
+			AND iaK.dteDate = iaC.dteDate
+
+	SET NOCOUNT OFF
+
+	-- resultados
+	 SELECT  
+		@txtDate +
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+		RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+		
+		SUBSTRING(REPLACE(STR(ROUND(c.dblMXNPrice,6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(c.dblMXNPrice,6),16,6),  ' ', '0'), 11, 6) +
+	
+		RTRIM(ia.txtCur) + REPLICATE(' ',3 - LEN(ia.txtCur)) +
+		RTRIM(ia.txtCountry) + REPLICATE(' ',2 - LEN(ia.txtCountry)) +
+		RTRIM(c.txtIndex) + REPLICATE(' ',7 - LEN(c.txtIndex)) +
+	
+		SUBSTRING(REPLACE(STR(ROUND(c.dblPond * 100,6),11,6),  ' ', '0'), 1, 4) +
+			SUBSTRING(REPLACE(STR(ROUND(c.dblPond * 100,6),11,6),  ' ', '0'), 6, 6) +
+	
+		RTRIM(ia.txtId2) + REPLICATE(' ',12 - LEN(ia.txtId2)) +
+		RTRIM(ia.txtId3) + REPLICATE(' ',9 - LEN(ia.txtId3)) +
+		RTRIM(ia.txtId4) + REPLICATE(' ',7 - LEN(ia.txtId4)) AS txtVectorPiP
+		
+	 FROM 
+		tblIds AS i (NOLOCK)
+		INNER JOIN @tblIndexEquityPrices AS c
+		ON i.txtId1 = c.txtId1
+		INNER JOIN @tblIdsAdd AS ia
+		ON i.txtId1 = ia.txtId1
+	 ORDER BY
+		c.txtIndex,
+		i.txtTv,
+		i.txtEmisora,
+		i.txtSerie
+
+END
+
+-- para obtener el formato CONSAR (cliente)
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;6
+ 	@txtDate AS CHAR(8),
+ 	@txtOwnerId AS CHAR(5),
+	@txtFlag AS CHAR(1)
+AS 
+BEGIN
+
+	-- indices y trackers internacionales
+	SELECT 
+		'H ' + 
+		'MC' +
+		@txtDate + 
+
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+		RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+		SUBSTRING(REPLACE(STR(ROUND(dblValue,6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(dblValue,6),16,6),  ' ', '0'), 11, 6) +
+		'000000000000000' +	
+		'000000000000' + 	
+		'025009' + 
+		@txtFlag +	
+		'000000' +
+		'00000000' +	
+
+		RTRIM(i.txtId2) + REPLICATE(' ',12 - LEN(RTRIM(i.txtId2))) +
+
+		'0        ' +
+		'0      ' +
+		'0         ' AS txtRecord
+	
+	FROM 
+		tblIrc AS ir
+		INNER JOIN tblIds AS i (NOLOCK)
+		ON ir.txtIrc = i.txtEmisora
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)
+		ON ir.txtIrc = o.txtDir
+	WHERE
+		ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc (NOLOCK)
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+		AND i.txtTv IN ('*I', '1I')
+		AND NOT i.txtEmisora IN ('SPINTPX')
+		AND o.txtOwnerId = @txtOwnerId
+		AND o.dteBeg <= @txtDate
+		AND o.dteEnd >= @txtDate
+	UNION
+	
+	-- indices y trackers nacionales
+	SELECT 
+		'H ' + 
+		'MC' +
+		@txtDate + 
+
+
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+		RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+		SUBSTRING(REPLACE(STR(ROUND(p.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(p.dblValue,6),16,6),  ' ', '0'), 11, 6) +
+		'000000000000000' +	
+		'000000000000' + 	
+		'025009' + 
+		@txtFlag +	
+		'000000' +
+		'00000000' +	
+
+		RTRIM(i.txtId2) + REPLICATE(' ',12 - LEN(RTRIM(i.txtId2))) +
+
+		'0        ' +
+		'0      ' +
+		'0         ' AS txtRecord
+	FROM 
+		tblIds AS i
+		INNER JOIN tblPrices AS p (NOLOCK)
+		ON i.txtId1 = p.txtId1
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)
+		ON i.txtEmisora = o.txtDir
+ 	WHERE
+		(
+			i.txtTv = '1B'
+			OR (
+				i.txtTv = 'RC'
+				AND i.txtEmisora = 'MEXBOL'
+			)
+			OR (
+				i.txtTv = 'RC'
+				AND i.txtEmisora = 'IMC30'
+			)
+
+		)
+		AND p.dteDate = @txtDate
+		AND o.txtOwnerId = @txtOwnerId
+		AND o.dteBeg <= @txtDate
+		AND o.dteEnd >= @txtDate
+
+	ORDER BY 
+		txtRecord
+
+END
+
+
+-- para obtener el formato PIP (Cliente)
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;7
+ 	@txtDate AS CHAR(8),
+ 	@txtOwnerId AS CHAR(5)
+AS 
+BEGIN
+
+	-- indices y trackers internacionales
+	SELECT 
+		@txtDate +
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) + 
+		RTRIM(i.txtEmisora) + REPLICATE(' ',7 - LEN(i.txtEmisora)) + 
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+		SUBSTRING(REPLACE(STR(ROUND(dblValue,6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(dblValue,6),16,6),  ' ', '0'), 11, 6) +
+		CASE
+		WHEN ia.txtValue IS NULL THEN '*M'
+		ELSE RTRIM(SUBSTRING(ia.txtValue,1,2)) + REPLICATE(' ',2 - LEN(SUBSTRING(ia.txtValue,1,2)))  
+		END AS txtRecord
+	FROM 
+		tblIds AS i
+		INNER JOIN tblIrc AS ir (NOLOCK)
+		ON i.txtEmisora = ir.txtIrc	
+		LEFT OUTER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'COUNTRY'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = ia.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia.txtItem
+			)
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)
+		ON ir.txtIrc = o.txtDir
+	WHERE
+		ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc (NOLOCK)
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+		AND i.txtTv IN ('*I', '1I')
+		AND NOT i.txtEmisora IN ('SPINTPX')
+		AND o.txtOwnerId = @txtOwnerId
+		AND o.dteBeg <= @txtDate
+		AND o.dteEnd >= @txtDate
+
+	UNION
+
+	-- indices y trackers nacionales
+	SELECT 
+
+		@txtDate +
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) + 
+		RTRIM(i.txtEmisora) + REPLICATE(' ',7 - LEN(i.txtEmisora)) + 
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+		SUBSTRING(REPLACE(STR(ROUND(p.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(p.dblValue,6),16,6),  ' ', '0'), 11, 6) +
+		CASE
+		WHEN ia.txtValue IS NULL THEN '*M'
+		ELSE RTRIM(SUBSTRING(ia.txtValue,1,2)) + REPLICATE(' ',2 - LEN(SUBSTRING(ia.txtValue,1,2)))  
+		END AS txtRecord
+	FROM 
+		tblIds AS i
+		INNER JOIN tblPrices AS p (NOLOCK)
+		ON i.txtId1 = p.txtId1	
+		LEFT OUTER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'COUNTRY'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = ia.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia.txtItem
+			)
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)
+		ON i.txtEmisora = o.txtDir
+	WHERE
+		(
+			i.txtTv = '1B'
+			OR (
+				i.txtTv = 'RC'
+				AND i.txtEmisora = 'MEXBOL'
+			)
+			OR (
+				i.txtTv = 'RC'
+				AND i.txtEmisora = 'IMC30'
+			)
+
+		)
+		AND p.dteDate = @txtDate
+		AND o.txtOwnerId = @txtOwnerId
+		AND o.dteBeg <= @txtDate
+		AND o.dteEnd >= @txtDate
+
+	ORDER BY 
+		txtRecord
+
+END
+
+-- para obtener el formato CSV (cliente)
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;8
+ 	@txtDate AS CHAR(8),
+ 	@txtOwnerId AS CHAR(5)
+
+AS 
+BEGIN
+
+	-- indices y trackers internacionales
+	SELECT 
+	
+		@txtDate + ',' + 
+		RTRIM(i.txtTv) + ',' + 
+		RTRIM(i.txtEmisora) + ',' + 
+		RTRIM(i.txtSerie) + ',' + 
+		LTRIM(SUBSTRING(STR(ROUND(dblValue,6),16,6), 1, 9)) + '.' +
+			RTRIM(SUBSTRING(STR(ROUND(dblValue,6),16,6), 11, 6)) + ',' + 
+		CASE
+		WHEN ia.txtValue IS NULL THEN '*M'
+		ELSE RTRIM(SUBSTRING(ia.txtValue,1,2)) + REPLICATE(' ',2 - LEN(SUBSTRING(ia.txtValue,1,2)))  
+		END + ',' +
+
+		CASE
+		WHEN ia2.txtValue IS NULL THEN ''
+		ELSE RTRIM(ia2.txtValue)
+		END  AS txtRecord
+	FROM 
+		tblIds AS i (NOLOCK)
+		INNER JOIN tblIrc AS ir (NOLOCK)
+		ON i.txtEmisora = ir.txtIrc	
+		LEFT OUTER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'COUNTRY'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = ia.txtId1
+					AND txtItem = ia.txtItem
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+			)
+		LEFT OUTER JOIN tblIdsAdd AS ia2 (NOLOCK)
+		ON 
+			i.txtId1 = ia2.txtId1
+			AND ia2.txtItem = 'ID7'
+			AND ia2.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = ia2.txtId1
+					AND txtItem = ia2.txtItem
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+			)
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)
+		ON ir.txtIrc = o.txtDir
+	WHERE
+		ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc (NOLOCK)
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+		AND i.txtTv IN ('*I', '1I')
+		AND NOT i.txtEmisora IN ('SPINTPX')
+		AND o.txtOwnerId = @txtOwnerId
+		AND o.dteBeg <= @txtDate
+		AND o.dteEnd >= @txtDate
+	UNION
+
+	-- indices y trackers nacionales
+	SELECT 
+	
+		@txtDate + ',' + 
+		RTRIM(i.txtTv) + ',' + 
+		RTRIM(i.txtEmisora) + ',' + 
+		RTRIM(i.txtSerie) + ',' + 
+		LTRIM(SUBSTRING(STR(ROUND(p.dblValue,6),16,6), 1, 9)) + '.' +
+			RTRIM(SUBSTRING(STR(ROUND(p.dblValue,6),16,6), 11, 6)) + ',' + 
+		CASE
+		WHEN ia.txtValue IS NULL THEN '*M'
+		ELSE RTRIM(SUBSTRING(ia.txtValue,1,2)) + REPLICATE(' ',2 - LEN(SUBSTRING(ia.txtValue,1,2)))  
+		END + ',' +
+
+		CASE
+		WHEN ia2.txtValue IS NULL THEN ''
+		ELSE RTRIM(ia2.txtValue)
+		END  AS txtRecord
+	FROM 
+		tblIds AS i (NOLOCK)
+		INNER JOIN tblPrices AS p (NOLOCK)
+		ON i.txtId1 = p.txtId1
+		LEFT OUTER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'COUNTRY'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = ia.txtId1
+					AND txtItem = ia.txtItem
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+			)
+		LEFT OUTER JOIN tblIdsAdd AS ia2 (NOLOCK)
+		ON 
+			i.txtId1 = ia2.txtId1
+			AND ia2.txtItem = 'ID7'
+			AND ia2.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = ia2.txtId1
+					AND txtItem = ia2.txtItem
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+			)
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)
+		ON i.txtEmisora = o.txtDir
+	WHERE
+		(
+			i.txtTv = '1B'
+			OR (
+				i.txtTv = 'RC'
+				AND i.txtEmisora = 'MEXBOL'
+			)
+			OR (
+				i.txtTv = 'RC'
+				AND i.txtEmisora = 'IMC30'
+			)
+
+		)
+		AND p.dteDate = @txtDate
+		AND o.txtOwnerId = @txtOwnerId
+		AND o.dteBeg <= @txtDate
+		AND o.dteEnd >= @txtDate
+
+	ORDER BY 
+		txtRecord
+
+
+END
+
+CREATE  PROCEDURE dbo.sp_clsOfficialIndexFiles;9  
+ @txtDate AS VARCHAR(10),  
+  @txtOwnerId AS CHAR(5)  
+AS  
+/*   
+ Autor:   ???  
+ Creacion:  ???  
+ Descripcion:    Para generar el vector de acciones CONSAR (cliente)  
+  
+ Modificado por: Csolorio  
+ Modificacion: 20110223  
+ Descripcion:    Se elimina la utilizacion de cursores  
+*/  
+BEGIN  
+ SET NOCOUNT ON   
+  
+ -- Creo tablas temporales  
+    
+ CREATE TABLE #tblIndexValue(  
+  txtIndex VARCHAR(8),  
+  dblIndexValue FLOAT)  
+  
+ CREATE TABLE #tblIndexEquityPrices(  
+  txtIndex VARCHAR(10),  
+  dteDate DATETIME,  
+  txtId1 CHAR(11),  
+  dblCount FLOAT,  
+  dblPrice FLOAT,  
+  txtCurrency VARCHAR(5),  
+  dblExchange FLOAT,      
+  dblMXNPrice FLOAT,  
+  dblPond FLOAT)  
+  
+ -- Obtengo el universo de indices  
+  
+ SELECT DISTINCT   
+  ip.txtIndex  
+ INTO #tblUniverse  
+ FROM tblIndexesPortfolios AS ip (NOLOCK)  
+ INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)  
+ ON   
+  ip.txtIndex = o.txtDir  
+ WHERE  
+  o.txtOwnerId = 'ING01'  
+  AND o.dteBeg <= @txtDate  
+  AND o.dteEnd >= @txtDate   
+ ORDER BY  
+  ip.txtIndex   
+  
+ -- Obtengo la ultima fecha de la composicion por indice  
+  
+ SELECT   
+  u.txtIndex,  
+  CASE   
+   WHEN MAX(dteDate) IS NULL THEN '19790324'  
+   ELSE MAX(dteDate)  
+  END AS dteDate  
+ INTO #tblMaxDates  
+ FROM tblIndexesPortfolios p(NOLOCK)  
+ INNER JOIN #tblUniverse u  
+ ON  
+  p.txtIndex = u.txtIndex  
+  AND p.dteDate <= @txtDate  
+ GROUP BY   
+  u.txtIndex  
+  
+ -- obtengo los precios de las acciones en pesos  
+  
+ INSERT #tblIndexEquityPrices  
+ SELECT   
+  ip.txtIndex,  
+  ip.dteDate,  
+  ip.txtId1,  
+  ip.dblCount,  
+  ep.dblPrice,  
+  e.txtCurrency,  
+    
+  CASE  
+  WHEN i.dblValue IS NULL THEN 1  
+  ELSE i.dblValue  
+  END AS dblExchange,  
+  
+  CASE  
+  WHEN p.dblValue IS NULL THEN -999  
+  ELSE p.dblValue  
+  END AS dblMXNPrice,  
+  
+  1E-10 AS dblPond  
+ FROM #tblUniverse u  
+ INNER JOIN #tblMaxDates d  
+ ON  
+  u.txtIndex = d.txtIndex  
+ INNER JOIN tblIndexesPortfolios AS ip (NOLOCK)  
+ ON   
+  d.txtIndex = ip.txtIndex  
+  AND d.dteDate = ip.dteDate  
+ INNER JOIN tblEquity AS e (NOLOCK)  
+ ON  
+  ip.txtId1 = e.txtId1  
+ INNER JOIN tblEquityPrices AS ep  (NOLOCK)     
+ ON e.txtId1 = ep.txtId1  
+ LEFT OUTER JOIN tblIrc AS i (NOLOCK)  
+ ON   
+  i.txtIrc = (  
+   CASE   
+   WHEN e.txtCurrency IN ('USD') THEN 'UFXU'    
+   ELSE e.txtCurrency  
+   END  
+  )  
+  AND i.dteDate = @txtDate  
+ LEFT OUTER JOIN tblPrices AS p (NOLOCK)  
+ ON   
+  e.txtId1 = p.txtId1   
+  AND p.dteDate = @txtDate  
+  AND p.txtItem = 'PAV'  
+ WHERE  
+  ep.dteDate = (  
+   SELECT MAX(dteDate)  
+   FROM tblEquityPrices  (NOLOCK)  
+   WHERE  
+    txtId1 = ep.txtId1  
+    AND dteDate <= @txtDate  
+    AND txtOperationCode = ep.txtOperationCode  
+  )  
+  AND ep.dteTime = (  
+   SELECT MAX(dteTime)  
+   FROM tblEquityPrices (NOLOCK)  
+   WHERE  
+    txtId1 = ep.txtId1  
+    AND dteDate = ep.dteDate  
+    AND txtOperationCode = ep.txtOperationCode  
+  )  
+  AND ep.txtOperationCode = 'S01'  
+  
+  
+ -- obtengo los precios en pesos    
+ UPDATE #tblIndexEquityPrices  
+ SET dblMXNPrice = dblPrice * dblExchange  
+ WHERE  
+  dblMXNPrice = -999  
+    
+  
+ -- obtengo el valor del indice en pesos  
+  
+ INSERT #tblIndexValue  
+  
+ SELECT    
+  txtIndex,  
+  SUM(dblCount * dblMXNPrice)    
+ FROM #tblIndexEquityPrices  
+ GROUP BY txtIndex  
+  
+  
+ UPDATE p  
+ SET p.dblPond = p.dblMXNPrice * p.dblCount / i.dblIndexValue  
+ FROM #tblIndexEquityPrices p  
+ INNER JOIN #tblIndexValue i  
+ ON   
+  p.txtIndex = i.txtIndex  
+  
+ -- obtengo codigos internacionales  
+  
+ SELECT DISTINCT   
+  i.txtId1,  
+  
+  CASE  
+  WHEN i.txtId2 IS NULL THEN ''  
+  ELSE i.txtId2  
+  END AS txtIsin,  
+  
+  CASE  
+  WHEN a.txtValue IS NULL THEN ''  
+  ELSE a.txtValue  
+  END AS txtSedol,  
+  
+  CASE  
+  WHEN a2.txtValue IS NULL THEN ''  
+  ELSE a2.txtValue  
+  END AS txtCusip  
+ INTO #tblIds  
+ FROM #tblIndexEquityPrices AS r  
+ INNER JOIN tblIds AS i (NOLOCK)  
+ ON r.txtId1 = i.txtId1  
+ LEFT OUTER JOIN tblIdsAdd AS a (NOLOCK)  
+ ON   
+  r.txtId1 = a.txtId1  
+  AND a.txtItem = 'ID4'  
+  AND a.dteDate = (  
+   SELECT MAX(dteDate)  
+   FROM tblIdsAdd (NOLOCK)  
+   WHERE  
+    txtId1 = a.txtId1  
+    AND txtItem = a.txtItem  
+    AND dteDate < CAST(@txtDate AS DATETIME) + 1  
+  )  
+ LEFT OUTER JOIN tblIdsAdd AS a2 (NOLOCK)  
+ ON   
+  r.txtId1 = a2.txtId1  
+  AND a2.txtItem IN ('ID3', 'ID5')  
+  AND a2.dteDate = (  
+   SELECT MAX(dteDate)  
+   FROM tblIdsAdd (NOLOCK)  
+   WHERE  
+    txtId1 = a2.txtId1  
+    AND txtItem = a2.txtItem  
+    AND dteDate < CAST(@txtDate AS DATETIME) + 1  
+  )  
+  
+ SET NOCOUNT OFF  
+  
+ -- resultado  
+ SELECT    
+  'H ' +   
+  'MC' +  
+  @txtDate +  
+  RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +  
+  RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +  
+  RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +  
+  
+  SUBSTRING(REPLACE(STR(ROUND(AVG(c.dblMXNPrice),6),16,6),  ' ', '0'), 1, 9) +  
+   SUBSTRING(REPLACE(STR(ROUND(AVG(c.dblMXNPrice),6),16,6),  ' ', '0'), 11, 6) +  
+  
+  '000000000000000' +  
+  '000000000000' +  
+  '025009' +   
+  '0' +   
+  '000000' +   
+  '00000000' +   
+  
+  RTRIM(i2.txtIsin) + REPLICATE(' ',12 - LEN(i2.txtIsin)) +  
+  RTRIM(i2.txtCusip) + REPLICATE(' ',9 - LEN(i2.txtCusip)) +  
+  RTRIM(i2.txtSedol) + REPLICATE(' ',7 - LEN(i2.txtSedol))  +  
+  '0         ' AS txtVectorConsar  
+    
+  FROM #tblIndexEquityPrices AS c  
+ INNER JOIN tblIds AS i (NOLOCK)  
+ ON   
+  c.txtId1 = i.txtId1  
+ INNER JOIN #tblIds AS i2  
+ ON   
+  i.txtId1 = i2.txtId1  
+  GROUP BY   
+  i.txtTv,  
+  i.txtEmisora,  
+  SUBSTRING(i.txtEmisora, 1, 7),  
+  i.txtSerie,  
+  i2.txtIsin,  
+  i2.txtCusip,  
+  i2.txtSedol  
+  ORDER BY  
+  i.txtTv,  
+  i.txtEmisora,  
+  i.txtSerie  
+  
+ SET NOCOUNT OFF  
+END -- para generar el vector accionario PIP (cliente)
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;10
+	@txtDate AS VARCHAR(10),
+ 	@txtOwnerId AS CHAR(5)
+AS
+BEGIN
+
+	DECLARE @txtIndex AS CHAR(10)
+	DECLARE @dteMaxdate AS DATETIME
+	DECLARE @dblIndexValue AS FLOAT
+
+	SET NOCOUNT ON
+
+	-- creo tablas temporales (buffers) para agilizar calculo
+	DECLARE @tblEquityPrices TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblEquityPricesTime TABLE (
+		txtId1 CHAR(11),
+		dteTime DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblEquityIndexesUnits TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	-- creo tabla consolidada para almacenar datos
+	DECLARE @tblIndexEquityPrices TABLE (
+		txtIndex CHAR(10),
+		dteDate DATETIME,
+		txtId1 CHAR(11),
+		dblCount FLOAT,
+		dblPrice FLOAT,
+		txtCurrency CHAR(5),
+		dblExchange FLOAT,
+		dblMXNPrice FLOAT,
+		dblPond FLOAT,
+		dblUnits FLOAT
+			PRIMARY KEY(txtIndex, txtId1)
+
+	)
+
+	DECLARE csr_portfolios CURSOR FOR 
+	SELECT DISTINCT 
+		ip.txtIndex
+	FROM 
+		tblIndexesPortfolios AS ip (NOLOCK)
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)
+		ON ip.txtIndex = o.txtDir
+	WHERE
+		o.txtOwnerId = @txtOwnerId
+		AND o.dteBeg <= @txtDate
+		AND o.dteEnd >= @txtDate	
+	ORDER BY
+		ip.txtIndex
+
+	OPEN csr_portfolios
+	FETCH NEXT FROM csr_portfolios INTO 
+		@txtIndex
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+
+		-- obtengo composicion mas reciente
+		SET @dteMaxdate = (
+			SELECT 
+				CASE 
+				WHEN MAX(dteDate) IS NULL THEN '19790324'
+				ELSE MAX(dteDate)
+				END AS dteDate
+			FROM tblIndexesPortfolios (NOLOCK)
+			WHERE
+				txtIndex = @txtIndex
+				AND dteDate <= @txtDate
+		)
+
+		IF @dteMaxdate <> '19790324'
+		BEGIN
+
+
+			-- obtengo las fechas mas recientes
+			DELETE FROM @tblEquityPrices
+
+			INSERT INTO @tblEquityPrices (
+				txtId1,
+				dteDate
+			)
+			SELECT 
+				e.txtId1,
+				MAX(ep.dteDate) AS dteDate
+			FROM 
+				tblEquity AS e (NOLOCK)
+				INNER JOIN tblEquityPrices AS ep (NOLOCK)
+				ON e.txtId1 = ep.txtId1
+				INNER JOIN tblIndexesPortfolios AS ip (NOLOCK)
+				ON e.txtId1 = ip.txtId1
+			WHERE
+				ip.txtIndex = @txtIndex
+				AND ip.dteDate = @dteMaxdate
+				AND ep.txtOperationCode = 'S01'
+				AND ep.dteDate <= @txtDate
+			GROUP BY 
+				e.txtId1			
+
+			-- obtengo las horas mas recientes
+			DELETE FROM @tblEquityPricesTime
+
+			INSERT INTO @tblEquityPricesTime (
+				txtId1,
+				dteTime
+			)
+			SELECT 
+				e.txtId1,
+				MAX(ep.dteTime) AS dteTime
+			FROM 
+				@tblEquityPrices AS e
+				INNER JOIN tblEquityPrices AS ep (NOLOCK)
+				ON 
+					e.txtId1 = ep.txtId1
+					AND e.dteDate = ep.dteDate
+			GROUP BY 
+				e.txtId1
+
+			-- obtengo la definicion mas reciente
+			-- de unidades por accion por indice
+			DELETE FROM @tblEquityIndexesUnits
+		
+			INSERT INTO @tblEquityIndexesUnits (
+				txtId1,
+				dteDate
+			)
+			SELECT 
+				txtId1,
+				MAX(dteDate)
+			FROM tblEquityIndexesUnits (NOLOCK)
+			WHERE
+				txtIrc = @txtIndex
+				AND dteDate <= @txtDate
+			GROUP BY 
+				txtId1
+
+			-- obtengo los precios de las acciones en pesos
+			INSERT INTO @tblIndexEquityPrices (
+				txtIndex,
+				dteDate,
+				txtId1,
+				dblCount,
+				dblPrice,
+				txtCurrency,
+				dblExchange,
+				dblMXNPrice,
+				dblPond,
+				dblUnits
+			)
+
+			SELECT 
+				ip.txtIndex,
+				ip.dteDate,
+				ip.txtId1,
+				ip.dblCount,
+				ep.dblPrice,
+				e.txtCurrency,
+				
+				CASE
+				WHEN i.dblValue IS NULL THEN 1
+				ELSE i.dblValue
+				END AS dblExchange,
+
+				CASE
+				WHEN p.dblValue IS NULL THEN -999
+				ELSE p.dblValue
+				END AS dblMXNPrice,
+
+				1E-10 AS dblPond,
+
+				CASE
+				WHEN eiu.dblUnits IS NULL THEN 1
+				ELSE eiu.dblUnits
+				END AS dblUnits
+
+			FROM 
+				tblEquity AS e (NOLOCK)
+				INNER JOIN tblIndexesPortfolios AS ip (NOLOCK)
+				ON e.txtId1 = ip.txtId1
+				INNER JOIN @tblEquityPrices AS ed
+				ON e.txtId1 = ed.txtId1
+				INNER JOIN @tblEquityPricesTime AS et
+				ON e.txtId1 = et.txtId1
+				INNER JOIN tblEquityPrices AS ep (NOLOCK)
+				ON 
+					e.txtId1 = ep.txtId1
+					AND ep.dteDate = ed.dteDate
+					AND ep.dteTime = et.dteTime
+
+				LEFT OUTER JOIN tblIrc AS i (NOLOCK)
+				ON 
+					i.txtIrc = (
+						CASE 
+						WHEN e.txtCurrency IN ('USD') THEN 'UFXU'		
+						ELSE e.txtCurrency
+						END
+					)
+					AND i.dteDate = @txtDate
+
+				LEFT OUTER JOIN tblPrices AS p (NOLOCK)
+				ON 
+					e.txtId1 = p.txtId1
+					AND p.dteDate = @txtDate
+					AND p.txtItem = 'PAV'
+
+				LEFT OUTER JOIN @tblEquityIndexesUnits AS eibuff
+				ON 
+					e.txtId1 = eibuff.txtId1
+
+				LEFT OUTER JOIN tblEquityIndexesUnits AS eiu (NOLOCK)
+				ON 
+					e.txtId1 = eiu.txtId1
+					AND eiu.txtIrc = @txtIndex
+					AND eiu.dteDate = eibuff.dteDate		
+				
+			WHERE
+				ip.txtIndex = @txtIndex
+				AND ip.dteDate = @dteMaxdate
+				AND ep.txtOperationCode = 'S01'
+
+			-- obtengo los precios en pesos		
+			UPDATE	@tblIndexEquityPrices
+			SET dblMXNPrice = dblPrice * dblExchange
+			WHERE
+				txtIndex = @txtIndex
+				AND dblMXNPrice = -999
+	
+			-- obtengo el valor del indice en pesos
+			SET @dblIndexValue = (
+				SELECT 	SUM(dblCount * dblMXNPrice * dblUnits)
+				FROM @tblIndexEquityPrices
+				WHERE
+					txtIndex = @txtIndex
+			)
+
+			UPDATE	@tblIndexEquityPrices
+			SET dblPond = dblMXNPrice * dblCount * dblUnits / @dblIndexValue
+			WHERE
+				txtIndex = @txtIndex
+
+		END 
+
+		FETCH NEXT FROM csr_portfolios INTO 
+			@txtIndex
+
+	END	
+
+	CLOSE csr_portfolios
+	DEALLOCATE csr_portfolios
+
+	-- creo tablas temporales (buffers) para agilizar extracciones
+	DECLARE @tblIdsAddId3 TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblIdsAddId4 TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+	DECLARE @tblIdsAddCountry TABLE (
+		txtId1 CHAR(11),
+		dteDate DATETIME
+			PRIMARY KEY(txtId1)
+	)
+
+
+	INSERT @tblIdsAddId3 (
+		txtId1,
+		dteDate
+	)
+	SELECT 
+		e.txtId1,
+		MAX(ia.dteDate) AS dteDate
+	FROM 
+		@tblIndexEquityPrices AS e
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON e.txtId1 = ia.txtId1
+	WHERE
+		ia.txtItem = 'ID3'
+		AND ia.dteDate < CAST(@txtDate AS DATETIME) + 1
+	GROUP BY 
+		e.txtId1
+
+
+	INSERT @tblIdsAddId4 (
+		txtId1,
+		dteDate
+	)
+	SELECT 
+		e.txtId1,
+		MAX(ia.dteDate) AS dteDate
+	FROM 
+		@tblIndexEquityPrices AS e
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON e.txtId1 = ia.txtId1
+	WHERE
+		ia.txtItem = 'ID4'
+		AND ia.dteDate < CAST(@txtDate AS DATETIME) + 1
+	GROUP BY 
+		e.txtId1
+
+	INSERT @tblIdsAddCountry (
+		txtId1,
+		dteDate
+	)
+	SELECT 
+		e.txtId1,
+		MAX(ia.dteDate) AS dteDate
+	FROM 
+		@tblIndexEquityPrices AS e
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON e.txtId1 = ia.txtId1
+	WHERE
+		ia.txtItem = 'COUNTRY'
+		AND ia.dteDate < CAST(@txtDate AS DATETIME) + 1
+	GROUP BY 
+		e.txtId1
+
+	-- creo tabla temporal para consolidar datos 
+	-- adicionales no relativos a valuacion
+	DECLARE @tblIdsAdd TABLE (
+		txtId1 CHAR(11),
+		txtId2 CHAR(12),
+		txtId3 VARCHAR(50),
+		txtId4 VARCHAR(50),
+		txtCountry VARCHAR(50),
+		txtCur CHAR(6)
+			PRIMARY KEY(txtId1)
+	)
+
+	INSERT INTO @tblIdsAdd (
+		txtId1,
+		txtId2,
+		txtId3,
+		txtId4,
+		txtCountry,
+		txtCur
+	)
+	SELECT DISTINCT 
+		e.txtId1,
+
+		CASE
+		WHEN i.txtId2 IS NULL THEN ''
+		ELSE i.txtId2
+		END AS txtId2,
+
+		CASE
+		WHEN ia.txtValue IS NULL THEN ''
+		ELSE ia.txtValue
+		END AS txtId3,
+
+		CASE
+		WHEN iaQ.txtValue IS NULL THEN ''
+		ELSE iaQ.txtValue
+		END AS txtId4,
+
+		CASE
+		WHEN iaK.txtValue IS NULL THEN 'MX'
+		ELSE iaK.txtValue
+		END AS txtCountry,
+
+		CASE
+		WHEN e.txtCurrency IS NULL THEN 'MXN'
+		WHEN e.txtCurrency IN ('MPS', 'MXP') THEN 'MXN'
+		WHEN e.txtCurrency IN ('UFXU') THEN 'USD'
+		ELSE e.txtCurrency
+		END AS txtCur
+
+	FROM 
+		tblIds AS i (NOLOCK)
+		INNER JOIN tblEquity AS e (NOLOCK)
+		ON i.txtId1 = e.txtId1
+		INNER JOIN @tblIndexEquityPrices AS p
+		ON e.txtId1 = p.txtId1
+		LEFT OUTER JOIN @tblIdsAddId3 AS ia3
+		ON e.txtId1 = ia3.txtId1
+		LEFT OUTER JOIN @tblIdsAddId4 AS ia4
+		ON e.txtId1 = ia4.txtId1
+		LEFT OUTER JOIN @tblIdsAddCountry AS iaC
+		ON e.txtId1 = iaC.txtId1
+
+		LEFT OUTER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON 
+			e.txtId1 = ia.txtId1
+			AND ia.txtItem = 'ID3'
+			AND ia.dteDate = ia3.dteDate
+
+		LEFT OUTER JOIN tblIdsAdd AS iaQ (NOLOCK)
+		ON 
+			e.txtId1 = iaQ.txtId1
+			AND iaQ.txtItem = 'ID4'
+			AND iaQ.dteDate = ia4.dteDate
+
+		LEFT OUTER JOIN tblIdsAdd AS iaK (NOLOCK)
+		ON 
+			e.txtId1 = iaK.txtId1
+			AND iaK.txtItem = 'COUNTRY'
+			AND iaK.dteDate = iaC.dteDate
+
+	SET NOCOUNT OFF
+
+	-- resultados
+	 SELECT  
+		@txtDate +
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+		RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+	
+		SUBSTRING(REPLACE(STR(ROUND(c.dblMXNPrice,6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(c.dblMXNPrice,6),16,6),  ' ', '0'), 11, 6) +
+	
+		RTRIM(ia.txtCur) + REPLICATE(' ',3 - LEN(ia.txtCur)) +
+		RTRIM(ia.txtCountry) + REPLICATE(' ',2 - LEN(ia.txtCountry)) +
+		RTRIM(c.txtIndex) + REPLICATE(' ',7 - LEN(c.txtIndex)) +
+	
+		SUBSTRING(REPLACE(STR(ROUND(c.dblPond * 100,6),11,6),  ' ', '0'), 1, 4) +
+			SUBSTRING(REPLACE(STR(ROUND(c.dblPond * 100,6),11,6),  ' ', '0'), 6, 6) +
+	
+		RTRIM(ia.txtId2) + REPLICATE(' ',12 - LEN(ia.txtId2)) +
+		RTRIM(ia.txtId3) + REPLICATE(' ',9 - LEN(ia.txtId3)) +
+		RTRIM(ia.txtId4) + REPLICATE(' ',7 - LEN(ia.txtId4)) AS txtVectorPiP
+		
+	 FROM 
+		tblIds AS i (NOLOCK)
+		INNER JOIN @tblIndexEquityPrices AS c
+		ON i.txtId1 = c.txtId1
+		INNER JOIN @tblIdsAdd AS ia
+		ON i.txtId1 = ia.txtId1
+	 ORDER BY
+		c.txtIndex,
+		i.txtTv,
+		i.txtEmisora,
+		i.txtSerie
+
+END
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;11
+ 	@txtDate AS CHAR(8),
+	@txtFlag AS CHAR(1)
+
+AS 
+
+/*	
+	Autor:			???
+	Creacion:		???
+	Descripcion:    Obtiene el formato consar en excel del vector de indices
+
+	Modificacion:		2012-02-17
+	Modificado:			Ponate
+	Descripcion:		Se amplia condicion para indices internacionales *I	txtType = 'IND' txtSubType = 'EXT'
+*/
+
+BEGIN
+
+	-- indices y trackers internacionales
+	SELECT 
+		'H',
+		'MC',
+		@txtDate,
+		RTRIM(i.txtTv),
+		RTRIM(i.txtEmisora),
+		RTRIM(i.txtSerie),
+
+		CASE i.txtTv
+		WHEN '1I' THEN 
+			ROUND(			
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END * i2.dblValue,6)
+		ELSE
+			ROUND(			
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END,6)
+		END,
+
+		'000000000000000',
+		'000000000000',
+		'025009',
+		@txtFlag,
+		'000000',
+		'00000000',
+
+		RTRIM(i.txtId2),
+
+		'0        ',
+		'0      ',
+		'0         '
+	
+	FROM 
+		tblIrc AS ir (NOLOCK)
+		INNER JOIN tblIds AS i (NOLOCK)
+		ON ir.txtIrc = i.txtEmisora
+		INNER JOIN tblIdsAdd AS ia (NOLOCK)
+		ON 
+			i.txtId1 = ia.txtId1
+			AND ia.txtItem = 'CUR'
+			AND ia.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = ia.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia.txtItem
+			)
+		LEFT OUTER JOIN tblIrc AS i2
+		ON 
+			i2.txtIrc = (
+				CASE ia.txtValue
+				WHEN 'USD' THEN 'UFXU'
+				WHEN 'DLL' THEN 'UFXU'
+				ELSE ia.txtValue
+				END				
+			)
+			AND i2.dteDate = @txtDate
+		LEFT OUTER JOIN tblIdsAdd ia1
+		ON 
+			i.txtId1 = ia1.txtId1
+			AND ia1.txtItem = 'ALT_IRC'
+			AND ia1.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd
+				WHERE
+					txtId1 = ia1.txtId1
+					AND dtedate < CAST(@txtDate AS DATETIME) + 1
+					AND txtITem = ia1.txtItem
+			)
+		LEFT OUTER JOIN tblIrc AS i3
+		ON 
+			ia1.txtValue = i3.txtIrc
+			AND i3.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc
+			WHERE
+				txtIrc = i3.txtIrc
+				AND dteDate <= @txtDate
+			)
+	WHERE
+		ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc (NOLOCK)
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+		--AND i.txtTv IN ('*I', '1I')
+		AND ((i.txtTv = ('*I') AND i.txtType = 'IND') 
+			OR
+			(i.txtTv = ('1I') AND i.txtType = 'TRA'))
+		AND i.txtSubType = 'EXT'
+		AND NOT i.txtEmisora IN ('SPINTPX')
+	UNION
+	
+	-- indices y trackers nacionales
+	SELECT 
+		'H',
+		'MC',
+		@txtDate,
+
+
+		RTRIM(i.txtTv),
+		RTRIM(i.txtEmisora),
+		RTRIM(i.txtSerie),
+
+		ROUND(ir.dblValue,6),
+		'000000000000000',
+		'000000000000',
+		'025009',
+		@txtFlag,
+		'000000',
+		'00000000',
+
+		RTRIM(i.txtId2),
+
+		'0        ',
+		'0      ',
+		'0         '
+
+
+	FROM
+		tblIds AS i (NOLOCK)
+		INNER JOIN tblIrcCatalog AS ic (NOLOCK)
+		ON i.txtEmisora = ic.txtIrc
+		INNER JOIN tblIrc AS ir (NOLOCK)
+		ON ic.txtIrc = ir.txtIrc	
+	WHERE	
+		ic.intIrcCategory IN (2, 6)
+		AND i.txtTv IN ('RC', '1B')
+		AND ir.dteDate = (
+			SELECT MAX(dteDate)
+			FROM tblIrc (NOLOCK)
+			WHERE
+				txtIrc = ir.txtIrc
+				AND dteDate <= @txtDate
+		)
+
+	ORDER BY 
+		RTRIM(i.txtTv),
+		RTRIM(i.txtEmisora),
+		RTRIM(i.txtSerie)
+
+END
+-- para generar el vector de acciones CONSAR (soluciones)
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;12
+	@txtDate AS VARCHAR(10),
+ 	@txtOwnerId AS CHAR(5)
+AS
+BEGIN
+		
+	DECLARE @txtIndex AS CHAR(10)
+	DECLARE @dteMaxdate AS DATETIME
+	DECLARE @dblIndexValue AS FLOAT
+
+	SET NOCOUNT ON
+
+	-- creo tabla temporal
+	SELECT 
+		'1234567890'  AS txtIndex,
+		CAST('1979/03/24' AS DATETIME) AS dteDate,
+		'12345678901' AS txtId1,
+		1E-10 AS dblCount,
+		1E-10 AS dblPrice,
+		'12345' AS txtCurrency,
+		1E-10 AS dblExchange,				
+		1E-10 AS dblMXNPrice,
+		1E-10 AS dblPond
+	INTO #tblIndexEquityPrices
+	DELETE FROM #tblIndexEquityPrices
+
+	DECLARE csr_portfolios CURSOR FOR 
+	SELECT DISTINCT 
+		ip.txtIndex
+	FROM 
+		tblIndexesPortfolios AS ip (NOLOCK)
+		INNER JOIN MxProcesses.dbo.tblOwnersVsProductsDirectives AS o (NOLOCK)
+		ON ip.txtIndex = o.txtDir
+	WHERE
+		o.txtOwnerId = @txtOwnerId
+		AND o.dteBeg <= @txtDate
+		AND o.dteEnd >= @txtDate	
+	ORDER BY
+		ip.txtIndex 
+
+	OPEN csr_portfolios
+	FETCH NEXT FROM csr_portfolios INTO 
+		@txtIndex	
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+
+		-- obtengo composicion mas reciente
+		SET @dteMaxdate = (
+			SELECT 
+				CASE 
+				WHEN MAX(dteDate) IS NULL THEN '19790324'
+				ELSE MAX(dteDate)
+				END AS dteDate
+			FROM tblIndexesPortfolios (NOLOCK)
+			WHERE
+				txtIndex = @txtIndex
+				AND dteDate <= @txtDate
+		)
+
+		IF @dteMaxdate <> '19790324'
+		BEGIN
+
+			-- obtengo los precios de las acciones en pesos
+			INSERT #tblIndexEquityPrices
+			SELECT 
+				ip.txtIndex,
+				ip.dteDate,
+				ip.txtId1,
+				ip.dblCount,
+				ep.dblPrice,
+				e.txtCurrency,
+				
+				CASE
+				WHEN i.dblValue IS NULL THEN 1
+				ELSE i.dblValue
+				END AS dblExchange,
+
+				CASE
+				WHEN p.dblValue IS NULL THEN -999
+				ELSE p.dblValue
+				END AS dblMXNPrice,
+
+				1E-10 AS dblPond
+			FROM 
+				tblEquity AS e (NOLOCK)
+				INNER JOIN tblEquityPrices AS ep	 (NOLOCK)			
+				ON e.txtId1 = ep.txtId1
+				INNER JOIN tblIndexesPortfolios AS ip (NOLOCK)
+				ON e.txtId1 = ip.txtId1
+				LEFT OUTER JOIN tblIrc AS i (NOLOCK)
+				ON 
+					i.txtIrc = (
+						CASE 
+						WHEN e.txtCurrency IN ('USD') THEN 'UFXU'		
+						ELSE e.txtCurrency
+						END
+					)
+					AND i.dteDate = @txtDate
+				LEFT OUTER JOIN tblPrices AS p (NOLOCK)
+				ON 
+					e.txtId1 = p.txtId1	
+					AND p.dteDate = @txtDate
+					AND p.txtItem = 'PAV'
+			WHERE
+				ep.dteDate = (
+					SELECT MAX(dteDate)
+					FROM tblEquityPrices  (NOLOCK)
+					WHERE
+						txtId1 = ep.txtId1
+						AND dteDate <= @txtDate
+						AND txtOperationCode = ep.txtOperationCode
+				)
+				AND ep.dteTime = (
+					SELECT MAX(dteTime)
+					FROM tblEquityPrices (NOLOCK)
+					WHERE
+						txtId1 = ep.txtId1
+						AND dteDate = ep.dteDate
+						AND txtOperationCode = ep.txtOperationCode
+				)
+				AND ep.txtOperationCode = 'S01'
+				AND ip.txtIndex = @txtIndex
+				AND ip.dteDate = @dteMaxdate
+
+			-- obtengo los precios en pesos		
+			UPDATE	#tblIndexEquityPrices
+			SET dblMXNPrice = dblPrice * dblExchange
+			WHERE
+				txtIndex = @txtIndex
+				AND dblMXNPrice = -999
+				
+	
+			-- obtengo el valor del indice en pesos
+			SET @dblIndexValue = (
+				SELECT 	SUM(dblCount * dblMXNPrice)		
+				FROM #tblIndexEquityPrices
+				WHERE
+					txtIndex = @txtIndex
+			)
+
+			UPDATE	#tblIndexEquityPrices
+			SET dblPond = dblMXNPrice * dblCount / @dblIndexValue
+			WHERE
+				txtIndex = @txtIndex
+ 
+		END 
+
+		FETCH NEXT FROM csr_portfolios INTO 
+			@txtIndex
+
+	END	
+
+	CLOSE csr_portfolios
+	DEALLOCATE csr_portfolios
+
+	-- obtengo codigos internacionales
+	SELECT DISTINCT 
+		i.txtId1,
+
+		CASE
+		WHEN i.txtId2 IS NULL THEN ''
+		ELSE i.txtId2
+		END AS txtIsin,
+
+		CASE
+		WHEN a.txtValue IS NULL THEN ''
+		ELSE a.txtValue
+		END AS txtSedol,
+
+		CASE
+		WHEN a2.txtValue IS NULL THEN ''
+		ELSE a2.txtValue
+		END AS txtCusip
+	INTO #tblIds
+	FROM 
+		#tblIndexEquityPrices AS r
+		INNER JOIN tblIds AS i (NOLOCK)
+		ON r.txtId1 = i.txtId1
+		LEFT OUTER JOIN tblIdsAdd AS a (NOLOCK)
+		ON 
+			r.txtId1 = a.txtId1
+			AND a.txtItem = 'ID4'
+			AND a.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = a.txtId1
+					AND txtItem = a.txtItem
+					AND dteDate < CAST(@txtDate AS DATETIME) + 1
+			)
+		LEFT OUTER JOIN tblIdsAdd AS a2
+		ON 
+			r.txtId1 = a2.txtId1
+			AND a2.txtItem IN ('ID3', 'ID5')
+			AND a2.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIdsAdd (NOLOCK)
+				WHERE
+					txtId1 = a2.txtId1
+					AND txtItem = a2.txtItem
+					AND dteDate < CAST(@txtDate AS DATETIME) + 1
+			)
+
+	SET NOCOUNT OFF
+
+	-- resultado
+	 SELECT  
+		'H ' + 
+		'MC' +
+		@txtDate +
+		RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+		RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+		RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+	
+		SUBSTRING(REPLACE(STR(ROUND(AVG(c.dblMXNPrice),6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(AVG(c.dblMXNPrice),6),16,6),  ' ', '0'), 11, 6) +
+	
+		SUBSTRING(REPLACE(STR(ROUND(AVG(c.dblMXNPrice),6),16,6),  ' ', '0'), 1, 9) +
+			SUBSTRING(REPLACE(STR(ROUND(AVG(c.dblMXNPrice),6),16,6),  ' ', '0'), 11, 6) +
+
+		'000000000000' +
+		'025009' + 
+		'0' + 
+		'000000' + 
+		'00000000' + 
+	
+		RTRIM(i2.txtIsin) + REPLICATE(' ',12 - LEN(i2.txtIsin)) +
+		RTRIM(i2.txtCusip) + REPLICATE(' ',9 - LEN(i2.txtCusip)) +
+		RTRIM(i2.txtSedol) + REPLICATE(' ',7 - LEN(i2.txtSedol))  +
+		'0         ' AS txtVectorConsar
+		
+	 FROM 
+		#tblIndexEquityPrices AS c
+		INNER JOIN tblIds AS i (NOLOCK)
+		ON c.txtId1 = i.txtId1
+		INNER JOIN #tblIds AS i2
+		ON i.txtId1 = i2.txtId1
+	 GROUP BY 
+		i.txtTv,
+		i.txtEmisora,
+		SUBSTRING(i.txtEmisora, 1, 7),
+		i.txtSerie,
+		i2.txtIsin,
+		i2.txtCusip,
+		i2.txtSedol
+	 ORDER BY
+		i.txtTv,
+		i.txtEmisora,
+		i.txtSerie
+
+END
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;13
+ 	@txtDate AS CHAR(8),
+	@txtFlag AS CHAR(1)
+
+AS 
+BEGIN
+
+	DECLARE @tmp_tblUnifiedPricesReport TABLE (
+		txtId1 CHAR (11),
+		txtTv  CHAR (10),
+		txtCUR CHAR (6)
+			PRIMARY KEY (txtId1) 
+	)
+
+	INSERT @tmp_tblUnifiedPricesReport (txtId1,txtTv,txtCUR)
+		SELECT 
+			l.txtId1,
+			l.txtTv,
+			RTRIM(p.txtValue)
+	FROM tblidsAdd AS p (NOLOCK)
+	INNER JOIN tblids AS l (NOLOCK)
+	ON p.txtId1 = l.txtId1
+	WHERE l.txtTv = '*I' AND txtITEM = 'CUR'
+		AND l.txtType = 'IND' AND l.txtSubType = 'EXT'
+		UNION
+
+	SELECT 
+		txtId1,
+		txtTv, 
+		RTRIM(SUBSTRING(txtCUR,2,3))
+	FROM tmp_tblUnifiedPricesReport (NOLOCK)
+	WHERE txtTv IN ('RC','1I','1B')
+	ORDER BY txtTV
+
+		-- indices y trackers internacionales
+		SELECT 
+			'H ' + 
+			'MC' +
+			@txtDate + 
+
+			RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+			RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+			RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+			CASE i.txtTv
+			WHEN '1I' THEN 
+				SUBSTRING(REPLACE(STR(ROUND(
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END * i2.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+					SUBSTRING(REPLACE(STR(ROUND(			
+					CASE
+						WHEN ia1.txtValue IS NULL THEN ir.dblValue
+						ELSE i3.dblValue
+					END * i2.dblValue,6),16,6),  ' ', '0'), 11, 6) 
+			ELSE
+				SUBSTRING(REPLACE(STR(ROUND(			
+				CASE
+
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END,6),16,6),  ' ', '0'), 1, 9) +
+					SUBSTRING(REPLACE(STR(ROUND(			
+					CASE
+						WHEN ia1.txtValue IS NULL THEN ir.dblValue
+						ELSE i3.dblValue
+					END,6),16,6),  ' ', '0'), 11, 6) 
+			END +
+
+			'000000000000000' +	
+			'000000000000' +
+
+			CASE 
+				WHEN m.txtCUR = 'NA' OR m.txtCUR = 'A' OR m.txtCUR = '' THEN '      ' 
+				WHEN m.txtCUR = 'GBp' THEN UPPER(m.txtCUR)	
+				ELSE m.txtCUR 
+			END + 
+	
+			'025009' + 
+			@txtFlag +	
+			'000000' +
+			'00000000' +	
+
+			RTRIM(i.txtId2) + REPLICATE(' ',12 - LEN(RTRIM(i.txtId2))) +
+
+			'0        ' +
+			'0      ' +
+			'0         ' AS txtRecord
+		
+		FROM 
+			tblIrc AS ir
+			INNER JOIN tblIds AS i
+			ON ir.txtIrc = i.txtEmisora
+			INNER JOIN @tmp_tblUnifiedPricesReport AS m
+			ON 
+				i.txtId1 = m.txtId1
+			INNER JOIN tblIdsAdd AS ia
+			ON 
+				i.txtId1 = ia.txtId1
+				AND ia.txtItem = 'CUR'
+				AND ia.dteDate = (
+					SELECT MAX(dteDate)
+					FROM tblIdsAdd
+					WHERE
+						txtId1 = ia.txtId1
+						AND dtedate < CAST(@txtDate AS DATETIME) + 1
+						AND txtITem = ia.txtItem
+				)
+			LEFT OUTER JOIN tblIdsAdd ia1
+			ON 
+				i.txtId1 = ia1.txtId1
+				AND ia1.txtItem = 'ALT_IRC'
+				AND ia1.dteDate = (
+					SELECT MAX(dteDate)
+					FROM tblIdsAdd
+					WHERE
+						txtId1 = ia1.txtId1
+						AND dtedate < CAST(@txtDate AS DATETIME) + 1
+						AND txtITem = ia1.txtItem
+				)
+			LEFT OUTER JOIN tblIrc AS i2
+			ON 
+				i2.txtIrc = (
+					CASE ia.txtValue
+					WHEN 'USD' THEN 'UFXU'
+					WHEN 'DLL' THEN 'UFXU'
+					ELSE ia.txtValue
+					END				
+				)
+				AND i2.dteDate = @txtDate
+			LEFT OUTER JOIN tblIrc AS i3
+			ON 
+				ia1.txtValue = i3.txtIrc
+				AND i3.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIrc
+				WHERE
+					txtIrc = i3.txtIrc
+					AND dteDate <= @txtDate
+				)
+		WHERE
+			ir.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIrc
+				WHERE
+					txtIrc = ir.txtIrc
+					AND dteDate <= @txtDate
+			)
+			AND ((i.txtTv = ('*I') AND i.txtType = 'IND') 
+				OR
+				(i.txtTv = ('1I') AND i.txtType = 'TRA'))
+			AND i.txtSubType = 'EXT'
+			AND NOT i.txtEmisora IN ('SPINTPX')
+
+		UNION
+		
+		-- indices y trackers nacionales
+		SELECT 
+			'H ' + 
+			'MC' +
+			@txtDate + 
+
+			RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+			RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+			RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+			SUBSTRING(REPLACE(STR(ROUND(ir.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+				SUBSTRING(REPLACE(STR(ROUND(ir.dblValue,6),16,6),  ' ', '0'), 11, 6) +
+			'000000000000000' +	
+			'000000000000' + 
+
+			CASE 
+				WHEN m.txtCUR = 'NA' OR m.txtCUR = 'A' OR m.txtCUR = '' THEN '      ' 
+				WHEN m.txtCUR = 'GBp' THEN UPPER(m.txtCUR)	
+				ELSE m.txtCUR 
+			END + 
+	
+			'025009' + 
+			@txtFlag +	
+			'000000' +
+			'00000000' +	
+
+			RTRIM(i.txtId2) + REPLICATE(' ',12 - LEN(RTRIM(i.txtId2))) +
+
+			'0        ' +
+			'0      ' +
+			'0         ' AS txtRecord
+
+		FROM
+			tblIds AS i (NOLOCK)
+			INNER JOIN tblIrcCatalog AS ic (NOLOCK)
+			ON i.txtEmisora = ic.txtIrc
+			INNER JOIN @tmp_tblUnifiedPricesReport AS m
+			ON 
+				i.txtId1 = m.txtId1
+			INNER JOIN tblIrc AS ir (NOLOCK)
+			ON ic.txtIrc = ir.txtIrc	
+		WHERE	
+			ic.intIrcCategory IN (2, 6)
+			AND i.txtTv IN ('RC', '1B')
+			AND ir.dteDate = (
+				SELECT MAX(dteDate)
+				FROM tblIrc (NOLOCK)
+				WHERE
+					txtIrc = ir.txtIrc
+					AND dteDate <= @txtDate
+			)
+
+	ORDER BY 
+		txtRecord
+
+END
+--------------------------------------------------------------------------------------
+--   Autor:			Mike Ramírez    
+--   Creacion:		12:43 p.m. 2012-07-11
+--   Descripcion:   Procedimiento que genera el producto NUEVO_CONSAR_VI[yyyymmdd].PIP
+--------------------------------------------------------------------------------------
+CREATE PROCEDURE dbo.sp_clsOfficialIndexFiles;14
+ 	@txtDate AS CHAR(8) 
+
+AS 
+BEGIN
+
+	SET NOCOUNT ON
+
+	DECLARE @tmp_tblUnifiedPricesReport TABLE (
+		txtId1 CHAR (11),
+		txtTv  CHAR (10),
+		txtCUR CHAR (6)
+			PRIMARY KEY (txtId1) 
+	)
+
+	INSERT @tmp_tblUnifiedPricesReport (txtId1,txtTv,txtCUR)
+		SELECT 
+			l.txtId1,
+			l.txtTv,
+			RTRIM(p.txtValue)
+	FROM MxFixIncome.dbo.tblidsAdd AS p (NOLOCK)
+	INNER JOIN MxFixIncome.dbo.tblids AS l (NOLOCK)
+	ON p.txtId1 = l.txtId1
+	WHERE l.txtTv = '*I' AND txtITEM = 'CUR'
+		AND l.txtType = 'IND' AND l.txtSubType = 'EXT'
+		UNION
+
+	SELECT 
+		txtId1,
+		txtTv, 
+		RTRIM(SUBSTRING(txtCUR,2,3))
+	FROM MxFixIncome.dbo.tmp_tblUnifiedPricesReport (NOLOCK)
+	WHERE txtTv IN ('RC','1I','1B')
+	ORDER BY txtTV
+
+		-- indices y trackers internacionales
+		SELECT 
+			'H ' + 
+			'MC' +
+			@txtDate + 
+
+			RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+			RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+			RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+			CASE i.txtTv
+			WHEN '1I' THEN 
+				SUBSTRING(REPLACE(STR(ROUND(
+				CASE
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END * i2.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+					SUBSTRING(REPLACE(STR(ROUND(			
+					CASE
+						WHEN ia1.txtValue IS NULL THEN ir.dblValue
+						ELSE i3.dblValue
+					END * i2.dblValue,6),16,6),  ' ', '0'), 11, 6) 
+			ELSE
+				SUBSTRING(REPLACE(STR(ROUND(			
+				CASE
+
+					WHEN ia1.txtValue IS NULL THEN ir.dblValue
+					ELSE i3.dblValue
+				END,6),16,6),  ' ', '0'), 1, 9) +
+					SUBSTRING(REPLACE(STR(ROUND(			
+					CASE
+						WHEN ia1.txtValue IS NULL THEN ir.dblValue
+						ELSE i3.dblValue
+					END,6),16,6),  ' ', '0'), 11, 6) 
+			END +
+
+			'000000000000000' +	
+			'000000000000' +
+
+			CASE 
+				WHEN m.txtCUR = 'NA' OR m.txtCUR = 'A' OR m.txtCUR = '' THEN '      ' 
+				WHEN m.txtCUR = 'GBp' THEN UPPER(m.txtCUR)	
+				ELSE m.txtCUR 
+			END + 
+	
+			'025009' + 
+
+			'000000' +
+			'000000000' +	
+
+			RTRIM(i.txtId2) + REPLICATE(' ',12 - LEN(RTRIM(i.txtId2))) +
+
+			'0        ' +
+			'0      ' +
+			'0         ' AS txtRecord
+		
+		FROM 
+			MxFixIncome.dbo.tblIrc AS ir (NOLOCK)
+			INNER JOIN MxFixIncome.dbo.tblIds AS i (NOLOCK)
+			ON ir.txtIrc = i.txtEmisora
+			INNER JOIN @tmp_tblUnifiedPricesReport AS m
+			ON 
+				i.txtId1 = m.txtId1
+			INNER JOIN MxFixIncome.dbo.tblIdsAdd AS ia (NOLOCK)
+			ON 
+				i.txtId1 = ia.txtId1
+				AND ia.txtItem = 'CUR'
+				AND ia.dteDate = (
+					SELECT MAX(dteDate)
+					FROM MxFixIncome.dbo.tblIdsAdd (NOLOCK)
+					WHERE
+						txtId1 = ia.txtId1
+						AND dtedate < CAST(@txtDate AS DATETIME) + 1
+						AND txtITem = ia.txtItem
+				)
+			LEFT OUTER JOIN MxFixIncome.dbo.tblIdsAdd ia1
+			ON 
+				i.txtId1 = ia1.txtId1
+				AND ia1.txtItem = 'ALT_IRC'
+				AND ia1.dteDate = (
+					SELECT MAX(dteDate)
+					FROM MxFixIncome.dbo.tblIdsAdd (NOLOCK)
+					WHERE
+						txtId1 = ia1.txtId1
+						AND dtedate < CAST(@txtDate AS DATETIME) + 1
+						AND txtITem = ia1.txtItem
+				)
+			LEFT OUTER JOIN MxFixIncome.dbo.tblIrc AS i2 (NOLOCK)
+			ON 
+				i2.txtIrc = (
+					CASE ia.txtValue
+					WHEN 'USD' THEN 'UFXU'
+					WHEN 'DLL' THEN 'UFXU'
+					ELSE ia.txtValue
+					END				
+				)
+				AND i2.dteDate = @txtDate
+			LEFT OUTER JOIN MxFixIncome.dbo.tblIrc AS i3 (NOLOCK)
+			ON 
+				ia1.txtValue = i3.txtIrc
+				AND i3.dteDate = (
+				SELECT MAX(dteDate)
+				FROM MxFixIncome.dbo.tblIrc (NOLOCK)
+				WHERE
+					txtIrc = i3.txtIrc
+					AND dteDate <= @txtDate
+				)
+		WHERE
+			ir.dteDate = (
+				SELECT MAX(dteDate)
+				FROM MxFixIncome.dbo.tblIrc (NOLOCK)
+				WHERE
+					txtIrc = ir.txtIrc
+					AND dteDate <= @txtDate
+			)
+			AND ((i.txtTv = ('*I') AND i.txtType = 'IND') 
+				OR
+				(i.txtTv = ('1I') AND i.txtType = 'TRA'))
+			AND i.txtSubType = 'EXT'
+			AND NOT i.txtEmisora IN ('SPINTPX')
+
+		UNION
+		
+		-- indices y trackers nacionales
+		SELECT 
+			'H ' + 
+			'MC' +
+			@txtDate + 
+
+			RTRIM(i.txtTv) + REPLICATE(' ',4 - LEN(i.txtTv)) +
+			RTRIM(SUBSTRING(i.txtEmisora, 1, 7)) + REPLICATE(' ',7 - LEN(SUBSTRING(i.txtEmisora, 1, 7))) +
+			RTRIM(i.txtSerie) + REPLICATE(' ',6 - LEN(i.txtSerie)) +
+
+			SUBSTRING(REPLACE(STR(ROUND(ir.dblValue,6),16,6),  ' ', '0'), 1, 9) +
+				SUBSTRING(REPLACE(STR(ROUND(ir.dblValue,6),16,6),  ' ', '0'), 11, 6) +
+			'000000000000000' +	
+			'000000000000' + 
+
+			CASE 
+				WHEN m.txtCUR = 'NA' OR m.txtCUR = 'A' OR m.txtCUR = '' THEN '      ' 
+				WHEN m.txtCUR = 'GBp' THEN UPPER(m.txtCUR)	
+				ELSE m.txtCUR 
+			END + 
+	
+			'025009' + 
+
+			'000000'  +
+			'000000000' +	
+
+			RTRIM(i.txtId2) + REPLICATE(' ',12 - LEN(RTRIM(i.txtId2))) +
+
+			'0        ' +
+			'0      ' +
+			'0         ' AS txtRecord
+
+		FROM
+			MxFixIncome.dbo.tblIds AS i (NOLOCK)
+			INNER JOIN MxFixIncome.dbo.tblIrcCatalog AS ic (NOLOCK)
+			ON i.txtEmisora = ic.txtIrc
+			INNER JOIN @tmp_tblUnifiedPricesReport AS m
+			ON 
+				i.txtId1 = m.txtId1
+			INNER JOIN MxFixIncome.dbo.tblIrc AS ir (NOLOCK)
+			ON ic.txtIrc = ir.txtIrc	
+		WHERE	
+			ic.intIrcCategory IN (2, 6)
+			AND i.txtTv IN ('RC', '1B')
+			AND ir.dteDate = (
+				SELECT MAX(dteDate)
+				FROM MxFixIncome.dbo.tblIrc (NOLOCK)
+				WHERE
+					txtIrc = ir.txtIrc
+					AND dteDate <= @txtDate
+			)
+
+	ORDER BY 
+		txtRecord
+
+END
+

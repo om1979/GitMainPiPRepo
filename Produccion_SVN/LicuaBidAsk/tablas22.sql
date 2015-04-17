@@ -8,6 +8,10 @@ contiene 2 nuevas columnas
 
 
 
+--spi_LicuadoFinal;3 '20150324','CET', 1
+--para cargar tazaslicuadas interfaz con los datos del dia
+
+
 
 ----USE [MxFixIncome]
 ----GO
@@ -19,34 +23,44 @@ contiene 2 nuevas columnas
 --SET QUOTED_IDENTIFIER ON
 --GO
 
---CREATE TABLE [dbo].[itblNodesYTMLevels_BidAskTest](
---	[dteDate] [datetime] NOT NULL,
---	[intSerialYTM] [int] NOT NULL,
---	[dblValue] [float] NOT NULL,
---	[dblSpread] [float] NULL,
---	[dblBid] [float] NULL,
---	[dblAsk] [float] NULL,
---	[dteTime] [datetime] ,
---	[txtLicType] [varchar](50) NULL ,
---	[txtLevelsType] [varchar](50)
---) ON [PRIMARY]
+CREATE TABLE [dbo].[itblNodesYTMLevels_BidAskTest](
+	[dteDate] [datetime] NOT NULL,
+	[intSerialYTM] [int] NOT NULL,
+	[dblValue] [float] NOT NULL,
+	[dblSpread] [float] NULL,
+	[dblBid] [float] NULL,
+	[dblAsk] [float] NULL,
+	[dteTime] [datetime] ,
+	[txtLicType] [varchar](50) NULL ,
+	[txtLevelsType] [varchar](50)
+) ON [PRIMARY]
 
---GO
+GO
+
+--select * from itblNodesYTMLevels_BidAskTest
+insert into itblNodesYTMLevels_BidAskTest
+select 
+dteDate
+,intSerialYTM
+,dblValue
+,dblSpread
+,dblBid
+,dblAsk
+,dteTime
+,NULL 
+,'BidAsk'
+ from itblNodesYTMLevels
+where dtedate = '20150323'
 
 
---insert into itblNodesYTMLevels_BidAskTest
---select 
---dteDate
---,intSerialYTM
---,dblValue
---,dblSpread
---,dblBid
---,dblAsk
---,dteTime
---,NULL 
---,'BidAsk'
--- from [via-mxsql].mxfixincome.dbo.itblNodesYTMLevels
---where dtedate = '20150324'
+SELECT * FROM itblTasasLicuadasInterfaz
+--truncate table itblNodesYTMLevels_BidAskTest
+
+
+
+select * from sys.tables where name like '%YTMLevels%'
+select distinct dtedate from  itblNodesYTMLevelsHist
+where dtedate = '20150325'
 
 
 

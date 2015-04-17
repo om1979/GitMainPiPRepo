@@ -1,4 +1,5 @@
 
+
 --select * from tblActiveX where txtProceso like '%MXHSSPIPD%'
 
 
@@ -15,7 +16,7 @@
 
 --CREATE  PROCEDURE dbo.sp_productos_BITAL;4  
 declare   
-  @txtDate AS VARCHAR(10) = '20150416',    
+  @txtDate AS VARCHAR(10) = '20150401',    
   @txtLiquidation AS VARCHAR(3)    = 'MD'
     
     --,'MD'
@@ -53,8 +54,8 @@ declare
  DECLARE @Filler7 AS CHAR(6)    
  DECLARE @IssuedSharedCapital AS CHAR(12)    
  DECLARE @Filler8 AS CHAR(20)  
- DECLARE @txtIrcUSDvalue FLOAT  
- DECLARE @txtIrcEURvalue FLOAT   
+ DECLARE @txtIrcUSDvalue AS CHAR(20)  
+ DECLARE @txtIrcEURvalue AS CHAR(20)  
     
  -- Asignación de Valores Constantes    
  SET @ERecordTypeCode = 'H'    
@@ -75,8 +76,8 @@ declare
 --OBTENEMOS TIPO DE CAMBIO DEK DIA USD
 SET @txtIrcUSDvalue = (select dblValue from tblirc where txtirc = 'UFXU' and dteDate = @txtDate)
 SET @txtIrcEURvalue = (select dblValue from tblirc where txtirc = 'EUR' and dteDate = @txtDate)
-     
-    
+    -- select @txtIrcUSDvalue
+    --select @txtIrcEURvalue
  SET NOCOUNT ON    
     
     
@@ -251,41 +252,41 @@ CASE
     
     
  INSERT @tmp_tblResults    
-	 SELECT      
-	  @RecordTypeCode +   
-	  LTRIM(RTRIM(a.txtId2)) + REPLICATE(' ',12-LEN(LTRIM(RTRIM(a.txtId2)))) +    -- txtId2    
-	  @AliasSecurityCode +    
-	  CASE     
-	   WHEN SUBSTRING(LTRIM(RTRIM(i.txtName)),1,35) = '-' OR SUBSTRING(LTRIM(RTRIM(i.txtName)),1,35) = 'NA' OR i.txtName IS NULL    
-		THEN SUBSTRING(LTRIM(RTRIM(REPLACE(a.txtEmisora,CHAR(9),' '))),1,LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(a.txtEmisora,CHAR(9),' '))),1,35))) +    
-			 REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(a.txtEmisora,CHAR(9),' '))),1,35))) -- Complemento -- SecuritiesName(35)    
-		  WHEN LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,35)) < 35     
-		THEN SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,35))) +    
-			REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,35)))  -- Complemento SecuritiesName(35)    
-		  ELSE    
-		  SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,35)          -- SecuritiesName(35)    
-	  END +    
-	  STR(ROUND(a.dblPAV,6),14,5) +             -- ClosePricing(14)(9,5)    
-	  @Filler6 +     
-	  @txtDate +                  -- DateOfClosingPrice(8)    
-	  @Filler7 +     
-	  @txtHHMMSS +    
-	  'MXN' +                  -- Price Currency Mnemonic(3)    
-	  @IssuedSharedCapital +     
-	  @Filler8     
-	  AS [Rows],                
-	  1     
-	 FROM @tmp_tblEspecialFixedSecurities a    
-	  INNER JOIN MxFixIncome.dbo.tblIssuerCatalog AS i    
-	   ON a.txtEmisora = i.txtShortName    
-	 -- 1. Solicitud1_20080617: FIN     
+ SELECT      
+  @RecordTypeCode +   
+  LTRIM(RTRIM(a.txtId2)) + REPLICATE(' ',12-LEN(LTRIM(RTRIM(a.txtId2)))) +    -- txtId2    
+  @AliasSecurityCode +    
+  CASE     
+   WHEN SUBSTRING(LTRIM(RTRIM(i.txtName)),1,35) = '-' OR SUBSTRING(LTRIM(RTRIM(i.txtName)),1,35) = 'NA' OR i.txtName IS NULL    
+    THEN SUBSTRING(LTRIM(RTRIM(REPLACE(a.txtEmisora,CHAR(9),' '))),1,LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(a.txtEmisora,CHAR(9),' '))),1,35))) +    
+         REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(a.txtEmisora,CHAR(9),' '))),1,35))) -- Complemento -- SecuritiesName(35)    
+      WHEN LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,35)) < 35     
+    THEN SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,35))) +    
+        REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,35)))  -- Complemento SecuritiesName(35)    
+      ELSE    
+      SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtName,CHAR(9),' '))),1,35)          -- SecuritiesName(35)    
+  END +    
+  STR(ROUND(a.dblPAV,6),14,5) +             -- ClosePricing(14)(9,5)    
+  @Filler6 +     
+  @txtDate +                  -- DateOfClosingPrice(8)    
+  @Filler7 +     
+  @txtHHMMSS +    
+  'MXN' +                  -- Price Currency Mnemonic(3)    
+  @IssuedSharedCapital +     
+  @Filler8     
+  AS [Rows],                
+  1     
+ FROM @tmp_tblEspecialFixedSecurities a    
+  INNER JOIN MxFixIncome.dbo.tblIssuerCatalog AS i    
+   ON a.txtEmisora = i.txtShortName    
+ -- 1. Solicitud1_20080617: FIN     
 
 
 
 
 /*SE AGREGA SECCION DE INSTRUMENTOS CON CUSIP  2015-03-26 16:35:36.517 Oaceves*/
 	 INSERT @tmp_tblResults    
-			 SELECT
+			 SELECT 
 			  @RecordTypeCode +     
 			CASE     
 				WHEN LEN(LTRIM(RTRIM(i.TXTID3))) >= 9 THEN LTRIM(RTRIM(i.TXTID3)) + REPLICATE(' ',12-LEN(LTRIM(RTRIM(i.TXTID3)))) end  -- PrimarySecurityCode(12)   
@@ -299,12 +300,12 @@ CASE
 					 REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)))  -- Complemento SecuritiesName(35)    
 				  ELSE    
 				  SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)          -- SecuritiesName(35)    
-			  END + STR(price.dblPRS/cast(@txtIrcUSDvalue as decimal(20,6)),14,6)+
+			  END + STR(ROUND(price.dblPRS/@txtIrcUSDvalue,6),14,5) +
 			  @Filler6 +     
 			  @txtDate +                  -- DateOfClosingPrice(8)    
 			  @Filler7 +     
 			  @txtHHMMSS +    
-			  'USD' +                  -- Price Currency Mnemonic(3)    
+			  'MXN' +                  -- Price Currency Mnemonic(3)    
 			  @IssuedSharedCapital +     
 			  @Filler8   
 			  AS [Rows],                
@@ -339,12 +340,12 @@ CASE
 			   'MIRC0004569','MIRC0004570','MIRC0004572','MIRC0004573','MIRC0004574','MIRC0004577',    
 			   'MIRC0004579','MIRC0004580','MIRC0004581','MIRC0004582','MIRC0004583','MIRC0004584','MIRC0004586','MIRC0004587',    
 			   'MIRC0004588','MIRC0004589','MIRC0004590','MIRC0004591','UIRC0008070')   
-			  AND I.txtID3  not in ('-','NA') --I.txtID3 = '71654XAF4' 
+			  AND I.txtID3 not in ('-','NA')
 			  
 			  
 				  
-				----  /*SE AGREGA SECCION DE INSTRUMENTOS CON SEDOL  2015-03-26 16:35:36.517 Oaceves*/
-					INSERT @tmp_tblResults    
+				--  /*SE AGREGA SECCION DE INSTRUMENTOS CON SEDOL  2015-03-26 16:35:36.517 Oaceves*/
+						--  INSERT @tmp_tblResults    
 								 SELECT 
 								  @RecordTypeCode +     
 								CASE     
@@ -359,16 +360,16 @@ CASE
 										 REPLICATE(' ',35 - LEN(SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)))  -- Complemento SecuritiesName(35)    
 									  ELSE    
 									  SUBSTRING(LTRIM(RTRIM(REPLACE(i.txtNem,CHAR(9),' '))),1,35)          -- SecuritiesName(35)    
-								  END +  STR(price.dblPRS/cast(@txtIrcEURvalue as decimal(20,6)),14,6)+
+								  END + STR(ROUND(price.dblPRS/@txtIrcEURvalue,6),14,5) +
 								  @Filler6 +     
 								  @txtDate +                  -- DateOfClosingPrice(8)    
 								  @Filler7 +     
 								  @txtHHMMSS +    
-								  'EUR' +                  -- Price Currency Mnemonic(3)    
+								  'MXN' +                  -- Price Currency Mnemonic(3)    
 								  @IssuedSharedCapital +     
 								  @Filler8   
 								  AS [Rows],                
-								  3     
+								  3     ,i.TXTID4,STR(ROUND(price.dblPRS/@txtIrcEURvalue,6),14,5),price.dblPRS,@txtIrcEURvalue,price.txtLiquidation,price.txtId1
 								 FROM MxFixIncome.dbo.tmp_tblActualPrices AS a (NOLOCK)    
 								  INNER JOIN MxFixIncome.dbo.tmp_tblActualAnalytics_1 AS i (NOLOCK)    
 								   ON i.txtId1 = a.txtId1    
@@ -399,10 +400,10 @@ CASE
 								   'MIRC0004569','MIRC0004570','MIRC0004572','MIRC0004573','MIRC0004574','MIRC0004577',    
 								   'MIRC0004579','MIRC0004580','MIRC0004581','MIRC0004582','MIRC0004583','MIRC0004584','MIRC0004586','MIRC0004587',    
 								   'MIRC0004588','MIRC0004589','MIRC0004590','MIRC0004591','UIRC0008070')   
-								  AND I.txtID4  not in ('-','NA') 
+								  AND I.txtID4 not in ('-')
 				  
 	
----- -- Sustituir los caracteres no validos para el Sistema del cliente     
+ -- Sustituir los caracteres no validos para el Sistema del cliente     
  UPDATE @tmp_tblResults SET Row = REPLACE(Row,'!',' ')    
  UPDATE @tmp_tblResults SET Row = REPLACE(Row,'@',' ')    
  UPDATE @tmp_tblResults SET Row = REPLACE(Row,'#',' ')    
@@ -426,19 +427,15 @@ CASE
     
    
    if ((select COUNT(*) FROM @tmp_tblResults where Row is null) > 0)
-	   BEGIN 
-		   RAISERROR('ARCHIVO GENERADO CON NULOS ', 16, 1)
-			END 
-		   ELSE 
-		   BEGIN 
-		   SELECT Row FROM @tmp_tblResults ORDER BY Consecutivo,Row   
-	   END  
-	    
----- SET NOCOUNT OFF    
+   BEGIN 
+   RAISERROR('ARCHIVO GENERADO CON NULOS ', 16, 1)
+    END 
+   ELSE 
+   BEGIN 
+   SELECT Row FROM @tmp_tblResults ORDER BY Consecutivo,Row   
+   END  
     
-------END    
-------RETURN 0 
-
-
-
---select * into dbo.bkp_tmp_tblUnifiedPricesReport_20150410 from tmp_tblUnifiedPricesReport
+-- SET NOCOUNT OFF    
+    
+----END    
+----RETURN 0 

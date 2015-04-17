@@ -1,14 +1,9 @@
 
-----select * from tblactivex
-----where txtProceso ='TECHRULES_VEC_BENCHS'
-
-
-
---select * into dbo.Bkp_tmp_tblUnifiedPricesReport_20150331 from tmp_tblUnifiedPricesReport
---select * from tblactivex where txtvalor like '%CB%'
---and txtpropiedad like '%FileName%'
 
 /*    
+Autor:  oaceves
+Fecha de Creación:  2015-04-06 12:55:39
+Descripcion  :   se agregan3 campos , nombre del index,valor de indice,id2
 ----------------------------------------------------------      
 --   Modificado por: Mike Ramírez      
 --   Modificacion: 15:18 p.m. 2012-04-26      
@@ -24,12 +19,12 @@
 --  Descripcion: se agrega tipo de valor CF a universo  
 ----------------------------------------------------------      
 */    
- --CREATE   PROCEDURE dbo.usp_productos_TECHRULES;1 --'20141002'         
- declare @txtDate AS DATETIME = '20150401'     
- --AS         
- --BEGIN        
+ ALTER     PROCEDURE dbo.usp_productos_TECHRULES;1 --'20141002'         
+  @txtDate AS DATETIME     
+ AS         
+ BEGIN        
       
- --SET NOCOUNT ON      
+ SET NOCOUNT ON      
       
  -- Tabla de Resultados      
  DECLARE @tblResults TABLE (      
@@ -217,75 +212,91 @@
 /*Agregamos codigo para calcular Anexo 4 de Layout   -OACEVES*/
 
 
-/*Creamos tabla con Universo*/
-	Declare @tblIndexesPortfolios_Now table (txtIndex	char(7),dteDate datetime,txtId1	char(11),dblCount	 decimal(20,14))
-/*Llenamos Universo*/
-	insert into @tblIndexesPortfolios_Now
-		select txtIndex,dteDate,txtId1,dblCount from dbo.tblIndexesPortfolios 
-			where txtIndex 
-			 in ('CETETRAC', 'IMC30', 'IPCCOMP', 'MEXBOL', 'M10TRAC', 'M5TRAC', 'UDITRAC' , 'UMSTRAC')
-			 and  dtedate =@txtDate
 
-			 /*Variable con suma de universo*/
-			 declare @txtxUniverseCount float = (select  SUM(dblCount)  from @tblIndexesPortfolios_Now)
-			 
-			 /*Actualizamos Campo dblCount  = dblCount / @txtxUniverseCount*/
-			 
-			 update @tblIndexesPortfolios_Now
-			 set dblCount =dblCount /@txtxUniverseCount
-			 
-			-- select * from @tblIndexesPortfolios_Now
-			 
-			 
+	/*Creamos tabla con Universo*/
+		Declare @tblIndexesPortfolios_Now table (txtIndex	char(7),dteDate datetime,txtId1	char(11),dblCount	 decimal(20,14))
+	/*Llenamos Universo*/
+		insert into @tblIndexesPortfolios_Now
+			select txtIndex,dteDate,txtId1,dblCount from dbo.tblIndexesPortfolios 
+				where txtIndex 
+				 in ('CETETRAC', 'IMC30', 'IPCCOMP', 'MEXBOL', 'M10TRAC', 'M5TRAC', 'UDITRAC' , 'UMSTRAC')
+				 and  dtedate = @txtDate
+				 
+				 /*Variable con suma de universo por Index*/
+				 declare @tblSumcontainer table 
+				 (
+				 txtid varchar(10),
+				 dblIndexCount  float --,
+				 )
+				 insert into @tblSumcontainer
+							select  'CETETRAC',SUM(dblCount)  from @tblIndexesPortfolios_Now where txtIndex  = 'CETETRAC'
+							UNION
+							select  'IMC30',SUM(dblCount)  from @tblIndexesPortfolios_Now where txtIndex  = 'IMC30'
+							UNION
+							select  'IPCCOMP',SUM(dblCount)  from @tblIndexesPortfolios_Now where txtIndex  = 'IPCCOMP'
+							UNION
+							select  'MEXBOL',SUM(dblCount)  from @tblIndexesPortfolios_Now where txtIndex  = 'MEXBOL'
+							UNION
+							select  'M10TRAC',SUM(dblCount)  from @tblIndexesPortfolios_Now where txtIndex  = 'M10TRAC'
+							UNION
+							select  'M5TRAC',SUM(dblCount)  from @tblIndexesPortfolios_Now where txtIndex  = 'M5TRAC'
+							UNION
+							select  'UDITRAC',SUM(dblCount)  from @tblIndexesPortfolios_Now where txtIndex  = 'UDITRAC'
+							UNION
+							select  'UMSTRAC',SUM(dblCount)  from @tblIndexesPortfolios_Now where txtIndex  = 'UMSTRAC'
 
-			 
-	/*Declaramos tabla para contener resultados*/
-		DECLARE @tblProduct_Indexes TABLE
-			(
-				txtId1 varchar(12),
-				txtProductIndex varchar (100),
-				txtPesoIndex varchar (100)
-			)
-			
-		Declare @txtId1 varchar(12)
-/*Cursor para obtener Nombres de Indices (CODIGO_PRODUCTO_INDICE) y Precios de los Indices (PESO_INDICE)*/
-		Declare IndexesPortfolios cursor GLOBAL
-			 FOR
-			  SELECT distinct txtid1 from @tblIndexesPortfolios_Now
-		      
-					Open IndexesPortfolios
-						fetch IndexesPortfolios into @txtId1
-							while(@@fetch_status=0)
-								begin 
+				 /*Actualizamos Campo dblCount  = dblCount / @dblIndexCount*/
+					 update @tblIndexesPortfolios_Now
+					 set dblCount = dblCount/(select dblIndexCount from @tblSumcontainer where txtid = txtIndex and  dblIndexCount is  not null )
 
-									DECLARE @str VARCHAR(100); 
-									DECLARE @str2 VARCHAR(100)
-									
-									/*Conseguimos Codigos*/
-									SELECT @str = COALESCE(@str +  '; ', '')+ RTRIM(LTRIM(txtIndex))    from @tblIndexesPortfolios_Now
-										  where  txtId1 = @txtId1
-									      
-									/*Conseguimos Precios*/
-										  SELECT @str2 = COALESCE(@str2 +  '; ', '')   +convert(varchar(100),dblCount)  from @tblIndexesPortfolios_Now
-										  where txtId1 = @txtId1
-										  
-								  /*Guardamos los datos*/
-										  Insert into @tblProduct_Indexes 
-											Select @txtId1,@str,@str2 
-											
-											
-											set @str = null
-											set @str2 = null
-											
-												fetch  IndexesPortfolios into @txtId1
-								end 
+		/*Declaramos tabla para contener resultados*/
+			DECLARE @tblProduct_Indexes TABLE
+				(
+					txtId1 varchar(12),
+					txtProductIndex varchar (100),
+					txtPesoIndex varchar (100)
+				)
+				
+			Declare @txtId1 varchar(12)
+	/*Cursor para obtener Nombres de Indices (CODIGO_PRODUCTO_INDICE) y Precios de los Indices (PESO_INDICE)*/
+			Declare IndexesPortfolios cursor GLOBAL
+				 FOR
+				  SELECT distinct txtid1 from @tblIndexesPortfolios_Now
+			      
+						Open IndexesPortfolios
+							fetch IndexesPortfolios into @txtId1
+								while(@@fetch_status=0)
+									begin 
+
+										DECLARE @str VARCHAR(100); 
+										DECLARE @str2 VARCHAR(100)
 										
-					close IndexesPortfolios
-		deallocate IndexesPortfolios
+										/*Conseguimos Codigos*/
+										SELECT @str = COALESCE(@str +  '; ', '')+ RTRIM(LTRIM(txtIndex))    from @tblIndexesPortfolios_Now
+											  where  txtId1 = @txtId1
+										      
+										/*Conseguimos Precios*/
+											  SELECT @str2 = COALESCE(@str2 +  '; ', '')   +convert(varchar(100),dblCount)  from @tblIndexesPortfolios_Now
+											  where txtId1 = @txtId1
+											  
+									  /*Guardamos los datos*/
+											  Insert into @tblProduct_Indexes 
+												Select @txtId1,@str,@str2 
+												
+												
+												set @str = null
+												set @str2 = null
+												
+													fetch  IndexesPortfolios into @txtId1
+									end 
+											
+						close IndexesPortfolios
+			deallocate IndexesPortfolios
+
 /*Se encuentra todo cargado en @tblProduct_Indexes*/
 
 
-/*Fin de calculo de Anexo 4*/
+/*Fin de calculo de Anexo 4 -OACEVES*/
 
 
 
@@ -393,12 +404,12 @@
   RTRIM(txtCOUNTRY),      
   RTRIM(txtSEC),  
  case 
-	when txtbur =  '-' then 'VACIO'
+	when txtbur =  '-' then ''
 	when txtBUR = 'ALTA' then '4'
 	when txtBUR = 'BAJA' then '1'
 	when txtBUR = 'MEDIA' then '2'
 	when txtBUR = 'MINIMA' then '0'
-	when txtBUR = 'NA' then 'VACIO'
+	when txtBUR = 'NA' then ''
 	when txtBUR = 'NULA' then '0'
 	when txtBUR = 'SIN BURSATILIDAD' then '0'
 end,
@@ -701,7 +712,7 @@ v.txtid2 = p.txtid2 --oaceves test
    CASE WHEN Pi.txtProductIndex IS NULL  THEN '' ELSE RTRIM(Pi.txtProductIndex) END + '|' +
    CASE WHEN Pi.txtPesoIndex IS NULL  THEN '' ELSE RTRIM(Pi.txtPesoIndex) END   + '|' +   
    CASE WHEN Bm.txtBur IS NULL  THEN '' ELSE RTRIM(Bm.txtBur) END  + '|' + 
-  CASE WHEN  Bm.txtid2 IS NULL  THEN '' ELSE RTRIM(Bm.txtid2) END 
+  CASE WHEN  Bm.txtid2 in (null,'-','NA','0') THEN '' ELSE RTRIM(Bm.txtid2) END 
    AS [txtData]      
  FROM @tblVectorPricesBenchMarks as Bm
 full  outer  join   @tblProduct_Indexes  as Pi
@@ -869,5 +880,5 @@ on Bm.txtId1 = Pi.txtId1
    FROM @tblResults      
    ORDER BY intConsecutivo,txtTV,txtEmisora,txtSerie      
       
- --SET NOCOUNT OFF     
- --END     
+ SET NOCOUNT OFF     
+ END     

@@ -1,7 +1,8 @@
---helptextxmodulo usp_productos_TECHRULES,3 --'[DATE|YYYYMMDD]'
 
-
---dbo.usp_productos_TechRules;3    '20150330'
+/*
+Modifica:  oaceves
+Fecha de Modificación:  2015-04-06 11:11:00
+Descripcion  :   Se agregan 5 campos nuevos Calificación S&P  Calificación FITCH  Calificación Moodys  Calificación HR Ratings  DISTRIBUCION_TIPO_TASA
 --------------------------------------------------------------------------------  
 --  Modificado por: Mike Ramirez  
 --  Fecha: 17:05 p.m. 2011-07-27  
@@ -9,13 +10,14 @@
 --  Modificado por:  Mike  --  Modificacion: 09:14 a.m. 2011-12-23  
 --  Descripcion:    Uso de mejores practicas de optimizacion  
 --------------------------------------------------------------------------------  
---CREATE PROCEDURE dbo.usp_productos_TechRules;3      
- declare  @txtDate AS DATETIME      
-      set @txtDate = '20150330'
---AS         
---BEGIN        
+*/
+ALTER  PROCEDURE dbo.usp_productos_TechRules;3      
+   @txtDate AS DATETIME      
+     -- set @txtDate = '20150330'
+AS         
+BEGIN        
       
--- SET NOCOUNT ON    
+ SET NOCOUNT ON    
    
  -- Creo tabla temporal de resultados      
  DECLARE @tblResult TABLE (      
@@ -193,6 +195,6 @@
  ELSE   
   RAISERROR ('ERROR: Falta Informacion', 16, 1)    
   
--- SET NOCOUNT OFF   
+ SET NOCOUNT OFF   
       
---END  
+END  

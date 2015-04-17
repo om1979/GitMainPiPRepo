@@ -34,3 +34,4 @@
 				GO
 				CREATE NONCLUSTERED INDEX [IX_itblPonderado_BidAsk] ON [dbo].[itblPonderado_BidAsk] ([dteDate], [intPlazo]) ON [PRIMARY]
 				GO
+
