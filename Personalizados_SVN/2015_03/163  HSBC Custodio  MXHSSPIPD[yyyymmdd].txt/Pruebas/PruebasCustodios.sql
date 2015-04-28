@@ -15,7 +15,7 @@
 
 --CREATE  PROCEDURE dbo.sp_productos_BITAL;4  
 declare   
-  @txtDate AS VARCHAR(10) = '20150416',    
+  @txtDate AS VARCHAR(10) = '20150417',    
   @txtLiquidation AS VARCHAR(3)    = 'MD'
     
     --,'MD'
@@ -153,6 +153,8 @@ CASE
    'MIRC0004579','MIRC0004580','MIRC0004581','MIRC0004582','MIRC0004583','MIRC0004584','MIRC0004586','MIRC0004587',    
    'MIRC0004588','MIRC0004589','MIRC0004590','MIRC0004591','UIRC0008070')   
    
+   
+   
  --ORDER BY a.txtTv,a.txtEmisora,a.txtSerie    
     
     
@@ -250,7 +252,7 @@ CASE
    
     
     
- INSERT @tmp_tblResults    
+  INSERT @tmp_tblResults    
 	 SELECT      
 	  @RecordTypeCode +   
 	  LTRIM(RTRIM(a.txtId2)) + REPLICATE(' ',12-LEN(LTRIM(RTRIM(a.txtId2)))) +    -- txtId2    
@@ -284,11 +286,11 @@ CASE
 
 
 /*SE AGREGA SECCION DE INSTRUMENTOS CON CUSIP  2015-03-26 16:35:36.517 Oaceves*/
-	 INSERT @tmp_tblResults    
+	 INSERT @tmp_tblResults   
 			 SELECT
-			  @RecordTypeCode +     
+			  @RecordTypeCode +    
 			CASE     
-				WHEN LEN(LTRIM(RTRIM(i.TXTID3))) >= 9 THEN LTRIM(RTRIM(i.TXTID3)) + REPLICATE(' ',12-LEN(LTRIM(RTRIM(i.TXTID3)))) end  -- PrimarySecurityCode(12)   
+				WHEN LEN(LTRIM(RTRIM(i.TXTID3))) >= 9 THEN LTRIM(RTRIM(i.TXTID3)) + REPLICATE(' ',12-LEN(LTRIM(RTRIM(i.TXTID3))))  end  -- PrimarySecurityCode(12)   
 			+ @AliasSecurityCode +    
 			  CASE     
 			   WHEN SUBSTRING(LTRIM(RTRIM(i.txtNem)),1,35) = '-' OR SUBSTRING(LTRIM(RTRIM(i.txtNem)),1,35) = 'NA' OR i.txtNem IS NULL    
@@ -321,12 +323,13 @@ CASE
 				INNER JOIN  tmp_tblUnifiedPricesReport as price
 				on  price.txtID1 = a.txtId1
 				and price.dteDate =@txtDate 
-				AND price.txtLiquidation = (    
-			 CASE a.txtLiquidation      
-			 WHEN 'MP' THEN 'MD'      
-			 ELSE a.txtLiquidation      
-			 END    
-			)   
+				AND price.txtLiquidation  IN (@txtLiquidation,'MP')   
+			--	 = (    
+			-- CASE a.txtLiquidation      
+			-- WHEN 'MP' THEN 'MD'      
+			-- ELSE a.txtLiquidation      
+			-- END    
+			--)   
 			 WHERE a.txtLiquidation IN (@txtLiquidation,'MP')    
 			  AND a.txtTv NOT IN ('*C','*CSP','FA','FB','FC','FCSP','FD','FI','FM','FS','FU','RC','SWT','WA','WASP','WC','WE','WESP','WI',    
 				 'OD','OA','OI','SWT','TR','*ISP','1ASP','1ESP','1ISP','56SP','74SP','81SP','93SP','D1SP','D2SP','D3SP',    
@@ -340,13 +343,15 @@ CASE
 			   'MIRC0004579','MIRC0004580','MIRC0004581','MIRC0004582','MIRC0004583','MIRC0004584','MIRC0004586','MIRC0004587',    
 			   'MIRC0004588','MIRC0004589','MIRC0004590','MIRC0004591','UIRC0008070')   
 			  AND I.txtID3  not in ('-','NA') --I.txtID3 = '71654XAF4' 
-			  
-			  
-				  
+			 -- and I.txtID3 = 'P2030771'
+			 
+			-- select * from @tmp_tblResults
+			
+				 
 				----  /*SE AGREGA SECCION DE INSTRUMENTOS CON SEDOL  2015-03-26 16:35:36.517 Oaceves*/
 					INSERT @tmp_tblResults    
-								 SELECT 
-								  @RecordTypeCode +     
+								 SELECT distinct 
+								  @RecordTypeCode +  
 								CASE     
 									WHEN LEN(LTRIM(RTRIM(i.TXTID4))) >=7 THEN LTRIM(RTRIM(i.TXTID4)) + REPLICATE(' ',12-LEN(LTRIM(RTRIM(i.TXTID4)))) end  -- PrimarySecurityCode(12)   
 								+ @AliasSecurityCode +    
@@ -372,21 +377,22 @@ CASE
 								 FROM MxFixIncome.dbo.tmp_tblActualPrices AS a (NOLOCK)    
 								  INNER JOIN MxFixIncome.dbo.tmp_tblActualAnalytics_1 AS i (NOLOCK)    
 								   ON i.txtId1 = a.txtId1    
-									AND i.txtLiquidation = (    
-									 CASE a.txtLiquidation      
-									 WHEN 'MP' THEN 'MD'      
-									 ELSE a.txtLiquidation      
-									 END    
-									)    
-									INNER JOIN  tmp_tblUnifiedPricesReport as price
-									   on  price.txtID1 = a.txtId1
-									and price.dteDate =@txtDate 
-										AND price.txtLiquidation = (    
+										AND i.txtLiquidation = (    
 										 CASE a.txtLiquidation      
 										 WHEN 'MP' THEN 'MD'      
 										 ELSE a.txtLiquidation      
 										 END    
-										)   
+										)    
+									INNER JOIN  tmp_tblUnifiedPricesReport as price
+									   on  price.txtID1 = a.txtId1
+									and price.dteDate =@txtDate 
+										AND price.txtLiquidation  IN (@txtLiquidation,'MP')   
+										--= (    
+										-- CASE a.txtLiquidation      
+										-- WHEN 'MP' THEN 'MD'      
+										-- ELSE a.txtLiquidation      
+										-- END    
+										--)   
 								 WHERE a.txtLiquidation IN (@txtLiquidation,'MP')    
 								  AND a.txtTv NOT IN ('*C','*CSP','FA','FB','FC','FCSP','FD','FI','FM','FS','FU','RC','SWT','WA','WASP','WC','WE','WESP','WI',    
 									 'OD','OA','OI','SWT','TR','*ISP','1ASP','1ESP','1ISP','56SP','74SP','81SP','93SP','D1SP','D2SP','D3SP',    
