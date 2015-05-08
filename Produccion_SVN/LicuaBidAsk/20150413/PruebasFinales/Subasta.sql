@@ -1,9 +1,63 @@
   
+ --1723
+--select* from #tblMaxYTMTime
+--WHERE txtId1 = 'MGOV3302606'
+
+
+
+--select * from itblhistoricnodesytmlevels
+--where intSerialYTM = '1091'
+--and dteDate = '20150324'
+
+
+--SELECT * FROM itblNodesYTMCatalog
+--WHERE txtId1 = 'MGOV3302606'
+
+
+--SELECT * FROM tblIds WHERE txtID1 = 'MGOV3302606'
+--AND txtTV = 'M '
+
+--select * from itblponderado_BidAsk
+--WHERE txtTV = 'M'
+
+
+--select * from tblHistoricPrices
+
+
+
+
+--5.14901217073202
+--select * from tblHistoricPrices
+--WHERE txtId1 = 'MGOV3302606'
+--and dteDate = '20150324'
+--and txtItem  = 'ytm'
+--and txtLiquidation = 'MD'
+
+
+
+
+
+
+
+
+----5.149
+
+
+--select * from itblponderado_BidAsk
+--where dblRate =  5.149
+
+
+
+--select * from itblponderado_BidAsk --774
+--select * from itblponderadoFinal_BidAsk --4
+
+--select * from itblponderadoFinal
+--WHERE dteDate = '20150324'
  
 --truncate  table   itblponderado_BidAsk
 --truncate  table    itblponderadoFinal_BidAsk
---select * from itblponderado_BidAsk --774
---select * from itblponderadoFinal_BidAsk --4
+
+
 
 
 --select * from itblponderado_BidAsk --1558
@@ -26,7 +80,19 @@
 
 --/*BID   */
 
---select * from itblponderado_BidAsk --1558
+select * from itblponderado_BidAsk --1558
+where intPlazo = 1723
+
+
+
+/*El motivo es que en el licuado normal se agregan valores de tipo corros cerrados los cuales no existen en el la licuadora BID-ASK*/
+select * from itblPonderado
+where dteDate = '20150324'
+and  intPlazo = 1723
+order by 7
+
+
+
 --where txttype = 'BID'
 --and txtblenderMatFlag = 0
 
@@ -148,8 +214,9 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
              txtTv CHAR(3)  
             ,intPlazo INT  
             ,intSerial INT  
-            ,dteTime DATETIME PRIMARY KEY ( txtTv, intPlazo, intSerial )  
-            )  
+           ,txtid1 varchar(50)--PRUEBAS BORRAR AL TERMINAR  
+          ,dteTime DATETIME PRIMARY KEY ( txtTv, intPlazo, intSerial )   
+            )   
   
         CREATE TABLE #tblMinOperation  
             (  
@@ -324,6 +391,9 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
         WHERE  
             txtBlender = @txtCategory  
             AND txtItem = 'ACL'  
+           
+          
+          --select * from itblParametrosLicuadora  
   
  -- Obtengo las operaciones del periodo  
    
@@ -390,7 +460,6 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                            ,7   
      
     END  
-  
         ELSE   
             BEGIN  
    
@@ -405,6 +474,7 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                     itblClosesRandom  
                 WHERE  
                     dteDate = @txtDate  
+                   
      
                 INSERT  #itblMarketPositions  
                (   
@@ -461,10 +531,8 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                         ORDER BY  
                             1  
                            ,6  
-           ,7   
-    
-    
-            END   
+							,7   
+						END   
    
                      DELETE 
                            FROM  #itblMarketPositions 
@@ -475,9 +543,7 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
 									 END 
 									AND @txtBlenderFlag    IN ('Bid','Ask')
   
- 
 
-  
         INSERT  #tblTvPlazoCatalog  
                 (   
                  txtTv  
@@ -537,13 +603,15 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                          txtTv  
 						,intPlazo  
                         ,intSerial  
-                        ,dteTime  
+                        ,txtid1 
+                        ,dteTime 
                         )  
                         SELECT  
                             t.txtTV  
                            ,DATEDIFF(DAY, @txtDate, b.dteMaturity) AS intPlazo  
                            ,c.intSerialYTM AS intSerial  
-                           ,MAX(l.dteTime) AS dteTime  
+                           ,C.txtId1--PRUEBAS BORRAR UNA VEZ CONCLUIDO
+                            ,MAX(l.dteTime) AS dteTime 
                         FROM  
                             itblNodesYTMCatalog c ( NOLOCK )  
                             INNER JOIN tblBonds b ( NOLOCK ) ON c.txtId1 = b.txtId1  
@@ -558,10 +626,11 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                         GROUP BY  
 							t.txtTV  
                            ,b.dteMaturity  
-                           ,c.intSerialYTM  
+                           ,c.intSerialYTM
+                           , C.txtId1--PRUEBAS BORRAR UNA VEZ CONCLUIDO  
                         ORDER BY  
                             1  
-  
+                           
 
                 INSERT  #tblLastRates  
                         (   
@@ -605,7 +674,6 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                             AND t.intPlazo = p.intPlazo  
                             WHERE  t.fStatus = 0    
             END  
-
 
    /*wHILE PARA CALCULO DE PONDERADOS Y CORROS*/
         DECLARE @intHoras AS INT  
@@ -983,7 +1051,7 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                          intTVPlazoId  
                         ,txtOperation  
                         ,dblRate  
-,dblAmount  
+						,dblAmount  
                         ,intBegin  
                         ,intEnd  
                         )  
@@ -1018,7 +1086,7 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                         ,txtOperation  
                         ,dblRate  
                         ,dblAmount  
-  ,intBegin  
+						,intBegin  
                         ,intEnd  
                         )  
                         SELECT  
@@ -1527,48 +1595,48 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
                     
                     
                      
-                    /* NO SE REQUIERE UTILIZARLO CASO SOLO SUBASTA (OTROS SE DEBE INCORPORAR ULTIMO QUERY)
-             
-  */
+                    /* 
+                    NO SE REQUIERE UTILIZARLO CASO SOLO SUBASTA (OTROS SE DEBE INCORPORAR ULTIMO QUERY)
+					 */
     
-      --          INSERT  itblPonderadoFinal_BidAsk  
-      --                  (   
-      --                   dteDate  
-      --                  ,txtTv  
-						--,intPlazo  
-      --                  ,dblTasaFinal  
-      --                  ,dblAmount  
-      --                  ,fStatus  
-      --                  ,txtType
-      --                  )  
-      --                  SELECT  
-      --                      p.dteDate  
-      --                     ,p.txtTv  
-      --                     ,p.intPlazo  
-      --                     ,AVG(p.dblRate)  
-      --                     ,MIN(p.dblAmount)  
-      --                     ,@fMatFlag
-      --                     ,@txtBlenderFlag
-      --                  FROM  
-      --                      #tblMaxEndTime t  
-      --               INNER JOIN #tblMaxBeginTime b ON t.txtTv = b.txtTv  
-      --                                                       AND t.intPlazo = b.intPlazo  
-      --                      INNER JOIN itblPonderado_BidAsk p ( NOLOCK ) ON t.txtTv = p.txtTv  
-      --                                                    AND t.intPlazo = p.intPlazo  
-      --                                                        AND t.dteTime = p.dteEndHour  
-      --                                                        AND b.dteTime = p.dteBeginHour  
-      --                      LEFT OUTER JOIN itblPonderadoFinal_BidAsk f ( NOLOCK ) ON t.txtTv = f.txtTv  
-      --                                                        AND t.intPlazo = f.intPlazo  
-      --        AND p.dteDate = f.dteDate  
-      --                                                        AND f.fStatus = @fMatFlag  
-      --                  WHERE  
-      --                      p.dteDate = @txtDate  
-      --                      AND f.txtTv IS NULL  
-      --                      AND P.txtType = @txtBlenderFlag
-      --                  GROUP BY  
-      --                      p.dteDate  
-      --                     ,p.txtTv  
-      --                     ,p.intPlazo   
+                INSERT  itblPonderadoFinal_BidAsk  
+                        (   
+                         dteDate  
+                        ,txtTv  
+						,intPlazo  
+                        ,dblTasaFinal  
+                        ,dblAmount  
+                        ,fStatus  
+                        ,txtType
+                        )  
+                        SELECT  
+                            p.dteDate  
+                           ,p.txtTv  
+                           ,p.intPlazo  
+                           ,AVG(p.dblRate)  
+                           ,MIN(p.dblAmount)  
+                           ,@fMatFlag
+                           ,@txtBlenderFlag
+                        FROM  
+                            #tblMaxEndTime t  
+                     INNER JOIN #tblMaxBeginTime b ON t.txtTv = b.txtTv  
+                                                             AND t.intPlazo = b.intPlazo  
+                            INNER JOIN itblPonderado_BidAsk p ( NOLOCK ) ON t.txtTv = p.txtTv  
+                                                          AND t.intPlazo = p.intPlazo  
+                                                              AND t.dteTime = p.dteEndHour  
+                                                              AND b.dteTime = p.dteBeginHour  
+                            LEFT OUTER JOIN itblPonderadoFinal_BidAsk f ( NOLOCK ) ON t.txtTv = f.txtTv  
+                                                              AND t.intPlazo = f.intPlazo  
+              AND p.dteDate = f.dteDate  
+                                                              AND f.fStatus = @fMatFlag  
+                        WHERE  
+                            p.dteDate = @txtDate  
+                            AND f.txtTv IS NULL  
+                            AND P.txtType = @txtBlenderFlag
+                        GROUP BY  
+                            p.dteDate  
+                           ,p.txtTv  
+                           ,p.intPlazo   
 
             END  
            /*TERMINA CALCULO DE LICUADORA BANDA 1  MATFLAG = 0*/
@@ -1910,48 +1978,49 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
   
   ---- Ajusto la el nivel de los nodos con subasta  
     
-  --              INSERT  #itblCorroPonderadoSubastas  
-  --                      (   
-  --                       txtTv  
-  --                      ,intPlazo  
-  --                      ,dblRate  
-  --                      )  
-  --                      SELECT  
-  --                          s.txtTv  
-		--				   ,s.intPlazo  
-  --                         ,CASE WHEN ISNULL(SUM(h.dblAmount), 0) >= s.dblAmount  * .1  THEN ( SUM(h.dblRate * h.dblAmount)   / SUM(h.dblAmount) + s.dblRate ) / 2  
-  --                          ELSE s.dblRate  END  
-		--						FROM  
-		--							#itblCorroPonderado s  
-		--							LEFT OUTER JOIN itblPonderado_BidAsk h ( NOLOCK ) ON s.txtTv = h.txtTv  
-		--															  AND s.intPlazo = h.intPlazo  
-		--															  AND h.txtOperation LIKE 'H%'  
-		--										  AND h.dteBeginHour >= '11:30'  
-		--															  AND h.dteDate = @txtDate  
-		--						WHERE  
-		--							s.txtOperationType = 'S'  
-		--							AND H.txtBlenderMatFlag = @txtBlenderFlag
-		--							 AND H.txttype = @fMatFlag
-		--			   GROUP BY  
-		--							s.txtTv  
-		--						   ,s.intPlazo  
-		--						   ,s.dblAmount  
-		--						   ,s.dblRate  
+                INSERT  #itblCorroPonderadoSubastas  
+                        (   
+                         txtTv  
+                        ,intPlazo  
+                        ,dblRate  
+                        )  
+                        SELECT  
+                            s.txtTv  
+						   ,s.intPlazo  
+                           ,CASE WHEN ISNULL(SUM(h.dblAmount), 0) >= s.dblAmount  * .1  THEN ( SUM(h.dblRate * h.dblAmount)   / SUM(h.dblAmount) + s.dblRate ) / 2  
+                            ELSE s.dblRate  END  
+								FROM  
+									#itblCorroPonderado s  
+									LEFT OUTER JOIN itblPonderado_BidAsk h ( NOLOCK ) ON s.txtTv = h.txtTv  
+																	  AND s.intPlazo = h.intPlazo  
+																	  AND h.txtOperation LIKE 'H%'  
+												  AND h.dteBeginHour >= '11:30'  
+																	  AND h.dteDate = @txtDate  
+								WHERE  
+									s.txtOperationType = 'S'  
+									AND H.txtBlenderMatFlag = @txtBlenderFlag
+									 AND H.txttype = @fMatFlag
+					   GROUP BY  
+									s.txtTv  
+								   ,s.intPlazo  
+								   ,s.dblAmount  
+								   ,s.dblRate  
 								   
 								   
-
-     
-  --              UPDATE  
-  --                  p  
-  --              SET                       p.dblTasaFinal = s.dblRate  
-  --              FROM  
-  --                  #itblCorroPonderadoSubastas s  
-  --                  INNER JOIN itblPonderadoFinal_BidAsk p ON s.txtTv = p.txtTv  
-  -- AND s.intPlazo = p.intPlazo  
-  --              WHERE  
-  --                  p.dteDate = @txtDate  
-  --                  AND p.fStatus = @fMatFlag
-  --                  AND p.txtBlenderMatFlag = @txtBlenderFlag  
+--drop table  itblPonderadoFinal_BidAsk
+--drop table itblPonderado_BidAsk
+         
+                UPDATE  
+                    p  
+                SET                       p.dblTasaFinal = s.dblRate  
+                FROM  
+                    #itblCorroPonderadoSubastas s  
+                    INNER JOIN itblPonderadoFinal_BidAsk p ON s.txtTv = p.txtTv  
+   AND s.intPlazo = p.intPlazo  
+                WHERE  
+                    p.dteDate = @txtDate  
+                    AND p.fStatus = @fMatFlag
+                    AND p.txtBlenderMatFlag = @txtBlenderFlag  
   
             END  
     /*
@@ -1962,4 +2031,6 @@ IF OBJECT_ID('tempdb..#itblPonderado') IS NOT NULL DROP TABLE #itblPonderado
     END  
   
  
+
 */  
+

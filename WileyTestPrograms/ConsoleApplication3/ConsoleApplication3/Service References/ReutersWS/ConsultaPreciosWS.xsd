@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:tns="http://ws.rfa.thomsonreuters.com/" targetNamespace="http://ws.rfa.thomsonreuters.com/" version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="obtenerPrecios" type="tns:obtenerPrecios" />
+  <xs:element name="obtenerPreciosResponse" type="tns:obtenerPreciosResponse" />
+  <xs:complexType name="obtenerPrecios">
+    <xs:sequence />
+  </xs:complexType>
+  <xs:complexType name="obtenerPreciosResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="return" type="tns:precios" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="precios">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="PRICE" type="tns:campos" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="campos">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="RIC" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="FLD" type="tns:campo" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="campo">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="FLD" type="xs:string" />
+      <xs:element minOccurs="0" name="VAL" type="xs:string" />
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

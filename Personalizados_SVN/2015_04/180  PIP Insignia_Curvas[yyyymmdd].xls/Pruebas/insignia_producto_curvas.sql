@@ -4,6 +4,9 @@
 	--Fecha:		2015-04-27 12:59:03.140
 	--Objetivo:		Crear archivo de Curvas libre de riesgo nodos especificos
 	--*/
+	--sp_productos_insignia;1 '20150505'
+	
+	
 	ALTER procedure sp_productos_insignia;1 
 	
 	 @dtedate VARCHAR(20) --= '20150424' 
@@ -139,7 +142,7 @@
 		LIB_BL varchar(20)
 		)
 		insert into  @tblFinalReport
-		select 'Plazo','Cetes','IMPTO Real','IMPTO	Ums','Libor'
+		select 'Plazo','Cetes IMPTO','Real IMPTO','Ums','Libor'
 
 		
 		
@@ -186,15 +189,15 @@ insert into  @tblFinalReport
 	
 	
 /*REPORTAMOS PRODUCTO*/
-		 --IF ((SELECT count(*) FROM @tblNodesLevels where dblVallue  is null) >0)      
-		 --	   BEGIN    
-			--			declare @errorData varchar(200)= 'Error: El producto reporta Nulos :' 
-			--			 RAISERROR (  @errorData , 16, 1)   
-			--	END  
-			--			ELSE  
-			--	BEGIN 
+		 IF ((SELECT count(*) FROM @tblNodesLevels where dblVallue  is null) >0)      
+		 	   BEGIN    
+						declare @errorData varchar(200)= 'Error: El producto reporta Nulos :' 
+						 RAISERROR (  @errorData , 16, 1)   
+				END  
+						ELSE  
+				BEGIN 
 					select txtNode,CET_CTI,UDB_UUI,UMS_YLD,LIB_BL from @tblFinalReport
 					order by intID asc
-				--END 
+				END 
 
 end 

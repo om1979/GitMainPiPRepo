@@ -31,6 +31,7 @@ SELECT *FROM tblProcesos
 WHERE txtProducto = 'INSIGNIA_CURVAS_XLS'
 
 
+
 SELECT * FROM  tblactivex
 WHERE txtPropiedad = 'Layout'
 AND txtProceso LIKE '%XLS%'
@@ -39,11 +40,20 @@ AND txtProceso LIKE '%XLS%'
 SELECT * FROM  tblactivex 
 where txtProceso  like '%CNSF_VEC_CLASIFICACIONES_XLS%'
 
-bcpQuickQuery
 
 
+sp_productos_insignia;1 '20150508'
 SELECT * FROM  tblactivex 
 where txtProceso  like '%INSIGNIA_CURVAS_XLS%'
+
+
+\\via-files\MxVprecios   \PRODUCTOS\DEFINITIVO\Insignia
+\\VIA-FILES\MxVPrecios\PRODUCTOS\DEFINITIVO\Insignia\
+
+
+
+
+
 
 
 
@@ -94,11 +104,11 @@ sp_productos_IXE;8 '20150427','MD'
 
 
 select * from MxProcesses.dbo.tblProductGeneratorMap 
-where txtPack = 'OPERATIVO_2'
+WHERE txtProduct = 'INSIGNIA_CURVAS_XLS'
 
 
 update MxProcesses.dbo.tblProductGeneratorMap 
-set fload = 1, txtPack = 'INACTIVO'--OPERATIVO_2
+set fload = 1, txtPack = 'DEF_CUR'--OPERATIVO_2
 WHERE txtProduct = 'INSIGNIA_CURVAS_XLS'
 
 
