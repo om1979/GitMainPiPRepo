@@ -17,7 +17,7 @@ namespace ConsoleApplication3
 
             Console.WriteLine(" " + RLine);
             Console.WriteLine("|    Proveedor Integral de Precios             |");
-            Console.WriteLine("|    Sistema de Respaldo para Bases de Datos   |");
+            Console.WriteLine("|    Sistema De Extraccion Elektron            |");
             Console.WriteLine("|    V:1.0001                                  |");
             Console.WriteLine(" " + RLine);
         }
@@ -27,6 +27,9 @@ namespace ConsoleApplication3
         {
           Console.WriteLine("Extraccion en Progreso...");
         }
+
+
+        
 
 
     }

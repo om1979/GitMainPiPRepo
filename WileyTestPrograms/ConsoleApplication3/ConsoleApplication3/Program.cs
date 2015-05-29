@@ -30,8 +30,12 @@ namespace ConsoleApplication3
             Inicia Porceso de Extraccion desde WBReuters
             */
             Printer.MainTitle();
-            Printer.IniciaExtraccion();
 
+
+        
+
+            try {
+            Printer.IniciaExtraccion();
             /*
              Interamos el corte de obtenerPrecios y recorremos todos sus campos
              */
@@ -57,7 +61,6 @@ namespace ConsoleApplication3
                    Temp_ObjectWsData.txtFLDVal = DicWSDataVal;
 
                }
-              
                 /*
                  Agregamos lo obtenido del Ric a Objeto Final para seguir interando
                  * Limpiamos Diccionarios y objeto TEmporal
@@ -66,6 +69,18 @@ namespace ConsoleApplication3
                Temp_ObjectWsData = null;
 
            }
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error al Establecer la conexion con el WS Elektron");
+                Console.WriteLine(e.Message);
+                System.Threading.Thread.Sleep(4000);
+                Environment.Exit(0);
+            }
+
+
+
             //FIN DE CICLOS 
              /*
              Reportamos termino del programa
@@ -74,7 +89,7 @@ namespace ConsoleApplication3
             //System.Threading.Thread.Sleep(5000);
             //Console.Clear();
             //Printer.MainTitle();
-            //Console.WriteLine("Extraccion Finalizada Se Procesaron {0} Rics ", ObjectFinakWsData.Count().ToString());
+            Console.WriteLine("Extraccion Finalizada Se Procesaron {0} Rics ", ObjectFinakWsData.Count().ToString());
             //Console.WriteLine("Presione una tecla para terminar...");
             //Console.ReadLine();
 

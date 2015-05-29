@@ -15,7 +15,7 @@
 
 --CREATE  PROCEDURE dbo.sp_productos_BITAL;4  
 declare   
-  @txtDate AS VARCHAR(10) = '20150417',    
+  @txtDate AS VARCHAR(10) = '20150512',    
   @txtLiquidation AS VARCHAR(3)    = 'MD'
     
     --,'MD'
@@ -180,10 +180,7 @@ CASE
  INSERT @tmp_tblEspecialFixedSecurities SELECT txtId1,txtId2,txtEmisora,MxFixIncome.dbo.fun_GetLastItemPrice(@txtDate,'MIRC0002482','MP','PAV') FROM MxFixIncome.dbo.tblIds (NOLOCK) WHERE txtId1 = 'MIRC0002482'    
  INSERT @tmp_tblEspecialFixedSecurities SELECT txtId1,txtId2,txtEmisora,MxFixIncome.dbo.fun_GetLastItemPrice(@txtDate,'MIRC0003291','MP','PAV') FROM MxFixIncome.dbo.tblIds (NOLOCK) WHERE txtId1 = 'MIRC0003291'    
  INSERT @tmp_tblEspecialFixedSecurities SELECT txtId1,txtId2,txtEmisora,MxFixIncome.dbo.fun_GetLastItemPrice(@txtDate,'MIRC0003374','MP','PAV') FROM MxFixIncome.dbo.tblIds (NOLOCK) WHERE txtId1 = 'MIRC0003374'    
- INSERT @tmp_tblEspecialFixedSecurities 
-
-
- SELECT txtId1,txtId2,txtEmisora,MxFixIncome.dbo.fun_GetLastItemPrice('20150315','MIRC0003705','MP','PAV') FROM MxFixIncome.dbo.tblIds (NOLOCK) WHERE txtId1 = 'MIRC0003705'    
+ INSERT @tmp_tblEspecialFixedSecurities SELECT txtId1,txtId2,txtEmisora,MxFixIncome.dbo.fun_GetLastItemPrice(@txtDate,'MIRC0003374','MP','PAV') FROM MxFixIncome.dbo.tblIds (NOLOCK) WHERE txtId1 = 'MIRC0003705' 
     
  -- Solicitud1_20080806: Caso Especial agrego instrumentos fijos:    
  INSERT @tmp_tblEspecialFixedSecurities SELECT txtId1,txtId2,txtEmisora,MxFixIncome.dbo.fun_GetLastItemPrice(@txtDate,'MHMG5200010','MP','PAV') FROM MxFixIncome.dbo.tblIds (NOLOCK) WHERE txtId1 = 'MHMG5200010'    

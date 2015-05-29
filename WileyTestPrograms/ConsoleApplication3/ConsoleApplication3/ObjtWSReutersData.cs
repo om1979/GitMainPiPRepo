@@ -14,18 +14,7 @@ namespace ConsoleApplication3
         public ArrayList txtFLD { get; set; }
 
         public ArrayList txtFLDVal { get; set; }
-        //public Dictionary<string,string> txtFLD { get; set; }
-
     }
-    //class ObjectWSData 
-    //{ 
-    //public  ObjectWSData (string txtIrc, string txtFLD,string txtDval)
-    //    {
-
-    //    }    
-    
-    //}
-
 
 
 
