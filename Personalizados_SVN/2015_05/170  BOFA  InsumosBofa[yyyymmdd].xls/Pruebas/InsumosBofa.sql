@@ -12,50 +12,53 @@
 
 
    
-   --select * from   MxProcesses.DBO.tblProductGeneratorMap
-   --where txtproduct like '%BOFA_INSUMOS_MULTISHEET_XLS%'
+   select * from   MxProcesses.DBO.tblProductGeneratorMap
+   where txtproduct like '%BOFA_INSUMOS_MULTISHEET_XLS%'
     
    
    
+ --UPDATE tblProductGeneratorMap 
+ --  SET txtPack = 'INACTIVO' --'OPERATIVO_2' --
+ --     where txtproduct like '%BOFA_INSUMOS_MULTISHEET_XLS%'
+ --   AND txtPack = 'OPERATIVO_2'
+   
+   --PREVIO_2
+   
    --UPDATE tblProductGeneratorMap 
-   --SET txtPack = 'PREVIO_2'
-   --   where txtproduct like '%BOFA_INSUMOS_MULTISHEET_XLS%'
-   -- AND txtPack = 'OPERATIVO_2'
-   
-   
-   
-   --UPDATE tblProductGeneratorMap 
-   --SET fload = 1
-   --   where txtproduct like '%PIP_MARKET_REF_DEF_HTM%'
+   --SET fload = 0
+   --         WHERE txtPack  = 'OPERATIVO_2'
+   --   and  txtproduct like '%BOFA_INSUMOS_MULTISHEET_XLS%'
 
+   -- txtPack  = 'OPERATIVO_2'
+      
+   
+       select * from   MxProcesses.DBO.tblProductGeneratorMap
+       WHERE txtPack  = 'OPERATIVO_2'
    
    
-       --select * from   MxProcesses.DBO.tblProductGeneratorMap
-       --WHERE txtPack  = 'OPERATIVO_2'
    
-   
-   
-   -- --Template_Insumos_Bofa.xls
+   ---- --Template_Insumos_Bofa.xls
    --SELECT * FROM TBLACTIVEX 
    --WHERE TXTPROCESO = 'BOFA_INSUMOS_MULTISHEET_XLS'
    
    
---   SELECT * FROM TBLACTIVEX 
---   WHERE TXTPROCESO = 'BOFA_INSUMOS_MULTISHEET_XLS'
---   AND txtPropiedad = 'TemplateFile'
+   SELECT * FROM TBLACTIVEX 
+   WHERE TXTPROCESO = 'BOFA_INSUMOS_MULTISHEET_XLS'
+----   AND txtPropiedad = 'TemplateFile'
    
---    UPDATE TBLACTIVEX 
---   SET txtValor = 'Template_Insumos_Bofa.xls'
---   WHERE TXTPROCESO = 'BOFA_INSUMOS_MULTISHEET_XLS'
---   AND txtPropiedad = 'TemplateFile'
-   
-   
-   
+   -- UPDATE TBLACTIVEX 
+   --SET txtValor = 'Template_Insumos_Bofa.xls'-- 'Template_Insumos_Bofa.xls'--'Template_Insumos_Bofa_TAKE2.xls'
+   --WHERE TXTPROCESO = 'BOFA_INSUMOS_MULTISHEET_XLS'
+   --AND txtPropiedad = 'TemplateFile'
+   ----
    
    
    
    
-   
+   --UPDATE TBLACTIVEX 
+   --SET txtValor = '\\VIA-FILES\MxVPrecios\PRODUCTOS\DEFINITIVO\BOFA\ACTUAL\'
+   --WHERE TXTPROCESO = 'BOFA_INSUMOS_MULTISHEET_XLS'
+   --and txtPropiedad = 'FilePath'
       
 --   select * from   MxProcesses.DBO.tblProductGeneratorMap
 --   where txtproduct like '%HTM%'
@@ -66,7 +69,7 @@
 --      AND DTEDATE = '20150519'
     
    
-    
+
 /*              
 ----------------------------------------------------------------------------------                
    Autor:    Mike Ramirez                
@@ -78,13 +81,11 @@ Fecha:2014-03-27 10:00:43.787
 Descripción:Se agregan nuevos irc al archivo y cambio dinamico para titulos fundigs Futures     ----------------------------------------------------------------------------------                
 */              
           
---ALTER   PROCEDURE [dbo].[sp_productos_BOFA];12          
-          --@dteDate AS DATETIME    
-  DECLARE @dteDate AS DATETIME = '20150520'           
-           
---AS                
---BEGIN                   
---SET NOCOUNT ON             
+ALTER   PROCEDURE [dbo].[sp_productos_BOFA];12          
+ @dteDate AS DATETIME 
+AS                
+BEGIN                   
+SET NOCOUNT ON             
                 
  DECLARE @intCont AS INTEGER                
  DECLARE @dblLevel AS FLOAT      
@@ -517,12 +518,12 @@ SELECT 6,19,NULL,'IL030','',NULL,NULL,NULL UNION
                      
          /*se agregan valores de acuerdo a layout */            
              
-SELECT 6,28,NULL,'A3L2YP','A3L2YR',NULL,NULL,NULL UNION          
-     SELECT 6,29,NULL,'A3L3YP','A3L3YR',NULL,NULL,NULL UNION               
+		 SELECT 6,28,NULL,'A3L2YP','A3L2YR',NULL,NULL,NULL UNION          
+		 SELECT 6,29,NULL,'A3L3YP','A3L3YR',NULL,NULL,NULL UNION               
          SELECT 6,30,NULL,'A3L4YP','A3L4YR',NULL,NULL,NULL UNION               
          SELECT 6,31,NULL,'A3L5YP','A3L5YR',NULL,NULL,NULL UNION               
          SELECT 6,32,NULL,'A3L6YP','A3L6YR',NULL,NULL,NULL UNION             
-       SELECT 6,33,NULL,'A3L7YP','A3L7YR',NULL,NULL,NULL UNION               
+		 SELECT 6,33,NULL,'A3L7YP','A3L7YR',NULL,NULL,NULL UNION               
          SELECT 6,34,NULL,'A3L8YP','A3L8YR',NULL,NULL,NULL UNION      
          SELECT 6,35,NULL,'A3L9YP','A3L9YR',NULL,NULL,NULL UNION               
          SELECT 6,36,NULL,'A3L10YP','A3L10YR',NULL,NULL,NULL UNION            
@@ -532,14 +533,14 @@ SELECT 6,28,NULL,'A3L2YP','A3L2YR',NULL,NULL,NULL UNION
                     
          SELECT 6,40,NULL,'','',NULL,NULL,NULL UNION               
          SELECT 6,41,NULL,'A3L30YP','A3L30YR',NULL,NULL,NULL UNION               
-      SELECT 6,42,NULL,'','',NULL,NULL,NULL UNION                
+		 SELECT 6,42,NULL,'','',NULL,NULL,NULL UNION                
          SELECT 6,43,NULL,'','',NULL,NULL,NULL UNION                
                     
          
                       
               
          /*Index.Future.Jun 14  col 9*/              
-SELECT 9,7,NULL,'IL001','',NULL,NULL,NULL UNION            
+		 SELECT 9,7,NULL,'IL001','',NULL,NULL,NULL UNION            
          SELECT 9,8,NULL,'IL030','',NULL,NULL,NULL UNION              
          SELECT 9,9,NULL,'IL090','',NULL,NULL,NULL UNION             
                        
@@ -555,7 +556,7 @@ SELECT 9,7,NULL,'IL001','',NULL,NULL,NULL UNION
                      
          SELECT 9,17,NULL,'A3L2YP','A3L2YR',NULL,NULL,NULL UNION               
          SELECT 9,18,NULL,'A3L3YP','A3L3YR',NULL,NULL,NULL UNION               
-       SELECT 9,19,NULL,'A3L4YP','A3L4YR',NULL,NULL,NULL UNION               
+         SELECT 9,19,NULL,'A3L4YP','A3L4YR',NULL,NULL,NULL UNION               
          SELECT 9,20,NULL,'A3L5YP','A3L5YR',NULL,NULL,NULL UNION              
          SELECT 9,21,NULL,'A3L6YP','A3L6YR',NULL,NULL,NULL UNION             
          SELECT 9,22,NULL,'A3L7YP','A3L7YR',NULL,NULL,NULL UNION               
@@ -570,7 +571,7 @@ SELECT 9,7,NULL,'IL001','',NULL,NULL,NULL UNION
          SELECT 9,29,NULL,'','',NULL,NULL,NULL UNION               
          SELECT 9,30,NULL,'A3L30YP','A3L30YR',NULL,NULL,NULL UNION               
          SELECT 9,31,NULL,'','',NULL,NULL,NULL UNION       
-        SELECT 9,32,NULL,'','',NULL,NULL,NULL UNION              
+         SELECT 9,32,NULL,'','',NULL,NULL,NULL UNION              
                        
                        
                 
@@ -1161,8 +1162,35 @@ SELECT 01,'BOFA',5,'VALORFIJO', 'Funding.Basis.20Y',15, 29,'0.0000',NULL,NULL,NU
   SELECT 01,'BOFA',10,'IRC-','OIS195',30,19,NULL,NULL,NULL,NULL,NULL UNION               
   SELECT 01,'BOFA',10,'IRC-','OIS260',30,20,NULL,NULL,NULL,NULL,NULL UNION                
   SELECT 01,'BOFA',10,'IRC-','OIS390',30,21,NULL,NULL,NULL,NULL,NULL UNION
- /*UDI-TIIE SWAP casos especiales */      
-  SELECT 01,'BOFA',10,'CUSTOM_CURVES', 'UDI-TIIE Swap 1D.',33,7,NULL,'UDT','SWP',182,NULL UNION
+ /*UDI-TIIE SWAP casos especiales */    
+
+/*titulos*/
+
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 1D.',32,7,'FUNDING.Cash.1B','UDT','SWP',182,null  UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 2D.',32,8,'FUNDING.Cash.2B','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 3D.',32,9,'FUNDING.Cash.3B','UDT','SWP',182,null  UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 4D.',32,10,'FUNDING.Cash.4B','UDT','SWP',182,null  UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 5D.',32,11,'FUNDING.Cash.5B','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 6D.',32,12,'FUNDING.Cash.6B','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 7D.',32,13,'FUNDING.Cash.7B','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 8D.',32,14,'FUNDING.Cash.8B','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 84D.',32,15, 'FUNDING.xccyswap.84D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 168D.',32,16,'FUNDING.xccyswap.168D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 252D',32,17,'FUNDING.xccyswap.252D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 364D',32,18,'FUNDING.xccyswap.364D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 728D',32,19,'FUNDING.xccyswap.728D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 1092D',32,20,'FUNDING.xccyswap.1092D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'UDI-TIIE Swap 1456D',32,21,'FUNDING.xccyswap.1456D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'FUNDING.xccyswap.1820D',32,22, 'FUNDING.xccyswap.1820D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'FUNDING.xccyswap.2548D',32,23,'FUNDING.xccyswap.2548D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'FUNDING.xccyswap.3640D',32,24,'FUNDING.xccyswap.3640D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'FUNDING.xccyswap.4368D',32,25,'FUNDING.xccyswap.4368D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'FUNDING.xccyswap.5460D',32,26,'FUNDING.xccyswap.5460D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'FUNDING.xccyswap.7280D',32,27,'FUNDING.xccyswap.7280D','UDT','SWP',182,null UNION
+	SELECT 01,'BOFA',10,'TITULOS', 'FUNDING.xccyswap.10920D',32,28,'FUNDING.xccyswap.10920D','UDT','SWP',182,null  UNION 
+
+/*Operaciones*/
+   SELECT 01,'BOFA',10,'CUSTOM_CURVES', 'UDI-TIIE Swap 1D.',33,7,NULL,'UDT','SWP',182,NULL UNION
    SELECT 01,'BOFA',10,'CUSTOM_CURVES', 'UDI-TIIE Swap 2D.',33,8,NULL,'UDT','SWP',NULL,NULL UNION     
    SELECT 01,'BOFA',10,'CUSTOM_CURVES', 'UDI-TIIE Swap 3D.',33,9,NULL,'UDT','SWP',NULL,NULL UNION 
    SELECT 01,'BOFA',10,'CUSTOM_CURVES', 'UDI-TIIE Swap 4D.',33,10,NULL,'UDT','SWP',NULL,NULL UNION
@@ -1284,6 +1312,9 @@ SELECT 01,'BOFA',5,'VALORFIJO', 'Funding.Basis.20Y',15, 29,'0.0000',NULL,NULL,NU
 		on Directives.txtCode = Swap.txtcode
 		and  Directives.intCol = 33
 		AND Directives.intRow <= 16
+		
+		
+		
 		
 		
 		
@@ -1509,7 +1540,9 @@ SELECT 02,'VOL',24,'SURFACES', 'VOLATILIDADES',9, 29, NULL,'SWP','VOL',364,10 UN
  END              
                 
  ELSE                
- BEGIN                
+ BEGIN          
+
+
     -- regreso los Sheets            
     SELECT                
     LTRIM(STR(indSheet)) AS [indSheet],               
@@ -1549,5 +1582,4 @@ SELECT 02,'VOL',24,'SURFACES', 'VOLATILIDADES',9, 29, NULL,'SWP','VOL',364,10 UN
     intRow                
                 
  END                 
-                
---END
+END
